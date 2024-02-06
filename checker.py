@@ -35,12 +35,30 @@ def run_checkstyle_check(tool_path, output_path, changed_java_files):
     run(cmd)
 
 
+"""
+执行pmd检测
+"""
+
+
 def run_pmd_check(tool_path, output_path, changed_java_files):
     pass
 
 
+"""
+执行重复代码检测，阈值为20行
+"""
+
+
 def run_simian_check(tool_path, output_path, changed_java_files):
-    pass
+    cmd = [
+        'java',
+        '-jar',
+        f'{tool_path}/simian-2.3.33/bin/simian-2.3.33.jar',
+        '-threshold=20',
+        f'-formatter=xml:{output_path}/simian_result.xml',
+        ' '.join(changed_java_files)
+    ]
+    run(cmd)
 
 
 """
