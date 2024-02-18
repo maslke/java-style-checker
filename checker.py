@@ -22,6 +22,8 @@ def run_checkstyle_check(tool_path, output_path, changed_java_files):
         :param changed_java_files: 执行检查的java源代码文件
         :return:
         """
+    if len(changed_java_files):
+        return
     cmd = [
         'java',
         f'-Dcheckstyle.suppressions.file={tool_path}/checkstyle-8.3/ruleFile/suppressions.xml',
@@ -46,6 +48,8 @@ def run_pmd_check(tool_path, output_path, changed_java_files):
     :param changed_java_files: 执行检查的java源代码文件
     :return:
     """
+    if len(changed_java_files) == 0:
+        return
     cmd = [
 
     ]
@@ -60,6 +64,8 @@ def run_simian_check(tool_path, output_path, changed_java_files):
     :param changed_java_files: 执行检查的java源代码文件
     :return:
     """
+    if len(changed_java_files):
+        return
     cmd = [
         'java',
         '-jar',
@@ -78,6 +84,8 @@ def run_lizard_check(output_path, changed_java_files):
     :param changed_java_files: 执行检查的java源代码文件
     :return:
     """
+    if len(changed_java_files) == 0:
+        return
     cmd = [
         'python3',
         '-m',
@@ -106,6 +114,8 @@ def run_eslint_check(tool_path, output_path, changed_js_files):
     :param changed_js_files: 执行检查的js源代码文件
     :return:
     """
+    if len(changed_js_files) == 0:
+        return
     cmd = [
         '/usr/bin/local/node',
         '--max-old-space-size=1000',
