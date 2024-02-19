@@ -1,6 +1,17 @@
 import argparse
 import git
 import subprocess
+import os
+import platform
+
+
+def is_windows():
+    """
+    判断是否是windows平台
+    :return: 当windows平台，返回True，否则返回False
+    """
+    os_platform = platform.system()
+    return os_platform == 'Windows'
 
 
 def run(cmd):
@@ -9,69 +20,95 @@ def run(cmd):
     :param cmd: 命令参数
     :return:
     """
+    print(' '.join(cmd), end='')
     process = subprocess.run(cmd)
     return_code = process.returncode
     print(return_code)
 
 
-def run_checkstyle_check(tool_path, output_path, changed_java_files):
+def delete_result_file(result_file):
     """
-        执行checkstyle检测
-        :param tool_path: 工具集根路径
-        :param output_path: 检查结果文件输出路径
-        :param changed_java_files: 执行检查的java源代码文件
-        :return:
-        """
-    if len(changed_java_files):
-        return
-    cmd = [
-        'java',
-        f'-Dcheckstyle.suppressions.file={tool_path}/checkstyle-8.3/ruleFile/suppressions.xml',
-        '-jar',
-        f'{tool_path}/checkstyle-8.3/checkstyle-8.3-all.jar',
-        '-c',
-        f'{tool_path}/checkstyle-8.3/ruleFile/checkstyle8.3-base.xml',
-        '-f',
-        'xml',
-        '-o',
-        f'{output_path}/checkstyle-result.xml',
-        ' '.join(changed_java_files)
-    ]
-    run(cmd)
+    在文件存在的情况下，删除文件
+    :param result_file: 文件路径
+    :return:
+    """
+    if os.path.exists(result_file):
+        os.remove(result_file)
 
 
-def run_pmd_check(tool_path, output_path, changed_java_files):
+def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
     """
-    执行pmd检测
-    :param tool_path: 工具集根路径
+    执行checkstyle检测
+    :param tool_set_path: 工具集根路径
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
     :return:
     """
     if len(changed_java_files) == 0:
         return
+    output_file = os.path.join(output_path, 'checkstyle-result.xml')
+    delete_result_file(output_file)
     cmd = [
-
+        'java',
+        f'-Dcheckstyle.suppressions.file={os.path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
+        '-jar',
+        os.path.join(tool_set_path, 'checkstyle-8.3', 'checkstyle-8.3-all.jar'),
+        '-c',
+        os.path.join(tool_set_path, 'checkstyle-8.3', 'ruleFile', 'checkstyle8.3-base.xml'),
+        '-f',
+        'xml',
+        '-o',
+        output_file,
+        ' '.join(changed_java_files)
     ]
     run(cmd)
 
 
-def run_simian_check(tool_path, output_path, changed_java_files):
+def run_pmd_check(tool_set_path, output_path, changed_java_files):
     """
-    执行重复代码检测，阈值为20行
-    :param tool_path: 工具集根路径
+    执行pmd检测
+    :param tool_set_path: 工具集根路径
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
     :return:
     """
-    if len(changed_java_files):
+    if len(changed_java_files) == 0:
         return
+    output_file = os.path.join(output_path, 'JavaPMD_Result.xml')
+    delete_result_file(output_file)
+    program = 'pmd.bat' if is_windows() else 'run.sh'
+    cmd = [
+        os.path.join(tool_set_path, 'PMD', 'bin', program),
+        '-d',
+        ' '.join(changed_java_files),
+        '-R',
+        os.path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
+        '-f',
+        'xml',
+        '-reportfile',
+        output_file
+    ]
+    run(cmd)
+
+
+def run_simian_check(tool_set_path, output_path, changed_java_files):
+    """
+    执行重复代码检测，阈值为20行
+    :param tool_set_path: 工具集根路径
+    :param output_path: 检查结果文件输出路径
+    :param changed_java_files: 执行检查的java源代码文件
+    :return:
+    """
+    if len(changed_java_files) == 0:
+        return
+    output_file = os.path.join(output_path, "simian_result.xml")
+    delete_result_file(output_file)
     cmd = [
         'java',
         '-jar',
-        f'{tool_path}/simian-2.3.33/bin/simian-2.3.33.jar',
+        os.path.join(tool_set_path, 'simian-2.3.33', 'bin', 'simian-2.3.33.jar'),
         '-threshold=20',
-        f'-formatter=xml:{output_path}/simian_result.xml',
+        f'-formatter=xml:{output_file}',
         ' '.join(changed_java_files)
     ]
     run(cmd)
@@ -86,8 +123,10 @@ def run_lizard_check(output_path, changed_java_files):
     """
     if len(changed_java_files) == 0:
         return
+    output_file = os.path.join(output_path, 'lizard_result.html')
+    delete_result_file(output_file)
     cmd = [
-        'python3',
+        'python',
         '-m',
         'lizard',
         '-l',
@@ -95,84 +134,137 @@ def run_lizard_check(output_path, changed_java_files):
         '-C',
         '10',
         '-o',
-        f'{output_path}/simian_result.html',
+        output_file,
         ' '.join(changed_java_files)
     ]
     run(cmd)
 
 
-"""
-执行eslint检测
-"""
-
-
-def run_eslint_check(tool_path, output_path, changed_js_files):
+def run_eslint_check(tool_set_path, output_path, changed_js_files):
     """
     执行eslint检查
-    :param tool_path: 工具集根目录
+    :param tool_set_path: 工具集根目录
     :param output_path: 检查结果文件输出路径
     :param changed_js_files: 执行检查的js源代码文件
     :return:
     """
     if len(changed_js_files) == 0:
         return
+    output_file = os.path.join(output_path, "eslint_result.xml")
+    delete_result_file(output_file)
     cmd = [
-        '/usr/bin/local/node',
+        'node',
         '--max-old-space-size=1000',
-        f'{tool_path}/fish-cli/bin/fish.js',
+        os.path.join(tool_set_path, 'fish-cli', 'bin', 'fish.js'),
         'lint',
         '-dir',
         ' '.join(changed_js_files),
         '-noCreateFileLog',
         '-f',
-        f'xml>{output_path}/eslint_result.xml'
+        f'xml>{output_file}'
     ]
     run(cmd)
 
 
-def check(project_path, tool_path, output_folder):
+def get_package_name(java_file):
+    """
+    获取java源代码文件的package名称
+    :param java_file: java源代码文件
+    :return:
+    """
+    java_file = java_file.replace('/', '.')
+    return java_file.partition('src.main.java.')[-1].partition('.java')[0]
+
+
+def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files):
+    """
+    执行spotbugs检测
+    :param project_path: 工程目录
+    :param tool_path: 工具集根目录
+    :param output_path: 检查结果文件输出路径
+    :param changed_java_files: 执行检查的java源代码文件
+    :return:
+    """
+    if len(changed_java_files) == 0:
+        return
+    output_file = os.path.join(output_path, "spotbugs_result.html")
+    delete_result_file(output_file)
+    classes_names = [get_package_name(x) for x in changed_java_files]
+    cmd = [
+        'java',
+        '-jar',
+        os.path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
+        '-textui',
+        '-quiet',
+        '-onlyAnalyze',
+        ','.join(classes_names),
+        f'-html={output_file}',
+        project_path
+    ]
+    run(cmd)
+
+
+def check(project_path, tool_set_path, output_folder):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
-    :param tool_path: 执行检查使用的工具集的路径
+    :param tool_set_path: 执行检查使用的工具集的路径
     :param output_folder: 检查结果输出文件的存放文件夹名称。默认为target
     :return:
     """
+    if not os.path.exists(project_path):
+        print('project does not exist')
+        return
+    if not os.path.exists(tool_set_path):
+        print('tool set does not exist')
+        return
     repo = git.Repo(project_path)
     latest_commit = repo.head.commit
     changed_files = latest_commit.diff(latest_commit.parents[0])
 
     changed_java_files = list()
     changed_js_files = list()
+    changed_java_files_short = list()
 
     for item in changed_files:
         a_path = item.a_path
         if a_path.endswith('.java'):
-            changed_java_files.append(f'{project_path}/{a_path}')
+            changed_java_files.append(os.path.join(project_path, a_path))
+            changed_java_files_short.append(a_path)
         elif a_path.endswith('.js'):
-            changed_js_files.append(f'{project_path}/{a_path}')
+            changed_js_files.append(os.path.join(project_path, a_path))
 
-    output_folder = 'target' if output_folder is None else output_folder
-    full_output_path = f'{project_path}/{output_folder}'
+    output_folder = 'check_result' if output_folder is None else output_folder
+    full_output_path = os.path.join(project_path, output_folder)
+    if not os.path.exists(full_output_path):
+        os.makedirs(full_output_path)
 
-    print('execute checkstyle check')
-    run_checkstyle_check(tool_path, full_output_path, changed_java_files)
+    print('begin to execute checkstyle check')
+    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files)
+    print('checkstyle check finished')
 
     print('execute lizard check')
     run_lizard_check(full_output_path, changed_java_files)
+    print('lizard check finished')
 
     print('execute pmd check')
-    run_pmd_check(full_output_path, full_output_path, changed_java_files)
+    run_pmd_check(tool_set_path, full_output_path, changed_java_files)
+    print('pmd check finished')
 
     print('execute eslint check')
-    run_eslint_check(tool_path, full_output_path, changed_js_files)
+    run_eslint_check(tool_set_path, full_output_path, changed_js_files)
+    print('eslint check finished')
+
+    print('execute spotbugs check')
+    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files_short)
+    print('spotbugs check finished')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', '-p', required=True, help='path of project directory')
-    parser.add_argument('--tool', '-t', required=True, help='path of check tool directory')
-    parser.add_argument('--output', '-o', required=False, help='sub folder name of check result file.')
+    parser.add_argument('--tool', '-t', required=True, help='path of check tool set parent directory')
+    parser.add_argument('--output', '-o', required=False, help='sub folder name of check result file')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
