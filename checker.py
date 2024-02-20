@@ -1,8 +1,24 @@
 import argparse
 import git
 import subprocess
-import os
 import platform
+import socket
+import os
+from os import path
+
+
+def port_is_valid(web_port):
+    """
+    检查端口是否被占用
+    :param web_port: 端口地址
+    :return:
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(('localhost', web_port))
+        except socket.error:
+            return True
+        return False
 
 
 def is_windows():
@@ -32,7 +48,7 @@ def delete_result_file(result_file):
     :param result_file: 文件路径
     :return:
     """
-    if os.path.exists(result_file):
+    if path.exists(result_file):
         os.remove(result_file)
 
 
@@ -46,15 +62,15 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
     """
     if len(changed_java_files) == 0:
         return
-    output_file = os.path.join(output_path, 'checkstyle-result.xml')
+    output_file = path.join(output_path, 'checkstyle-result.xml')
     delete_result_file(output_file)
     cmd = [
         'java',
-        f'-Dcheckstyle.suppressions.file={os.path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
+        f'-Dcheckstyle.suppressions.file={path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
         '-jar',
-        os.path.join(tool_set_path, 'checkstyle-8.3', 'checkstyle-8.3-all.jar'),
+        path.join(tool_set_path, 'checkstyle-8.3', 'checkstyle-8.3-all.jar'),
         '-c',
-        os.path.join(tool_set_path, 'checkstyle-8.3', 'ruleFile', 'checkstyle8.3-base.xml'),
+        path.join(tool_set_path, 'checkstyle-8.3', 'ruleFile', 'checkstyle8.3-base.xml'),
         '-f',
         'xml',
         '-o',
@@ -74,20 +90,22 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files):
     """
     if len(changed_java_files) == 0:
         return
-    output_file = os.path.join(output_path, 'JavaPMD_Result.xml')
+    output_file = path.join(output_path, 'JavaPMD_Result.xml')
     delete_result_file(output_file)
     program = 'pmd.bat' if is_windows() else 'run.sh'
     cmd = [
-        os.path.join(tool_set_path, 'PMD', 'bin', program),
+        path.join(tool_set_path, 'PMD', 'bin', program),
         '-d',
         ','.join(changed_java_files),
         '-R',
-        os.path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
+        path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
         '-f',
         'xml',
         '-reportfile',
         output_file
     ]
+    if not is_windows():
+        cmd.insert(1, 'pmd')
     run(cmd)
 
 
@@ -101,12 +119,12 @@ def run_simian_check(tool_set_path, output_path, changed_java_files):
     """
     if len(changed_java_files) == 0:
         return
-    output_file = os.path.join(output_path, "simian_result.xml")
+    output_file = path.join(output_path, "simian_result.xml")
     delete_result_file(output_file)
     cmd = [
         'java',
         '-jar',
-        os.path.join(tool_set_path, 'simian-2.3.33', 'bin', 'simian-2.3.33.jar'),
+        path.join(tool_set_path, 'simian-2.3.33', 'bin', 'simian-2.3.33.jar'),
         '-threshold=20',
         f'-formatter=xml:{output_file}',
         ' '.join(changed_java_files)
@@ -123,7 +141,7 @@ def run_lizard_check(output_path, changed_java_files):
     """
     if len(changed_java_files) == 0:
         return
-    output_file = os.path.join(output_path, 'lizard_result.html')
+    output_file = path.join(output_path, 'lizard_result.html')
     delete_result_file(output_file)
     cmd = [
         'python',
@@ -150,12 +168,12 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     """
     if len(changed_js_files) == 0:
         return
-    output_file = os.path.join(output_path, "eslint_result.xml")
+    output_file = path.join(output_path, "eslint_result.xml")
     delete_result_file(output_file)
     cmd = [
         'node',
         '--max-old-space-size=1000',
-        os.path.join(tool_set_path, 'fish-cli', 'bin', 'fish.js'),
+        path.join(tool_set_path, 'fish-cli', 'bin', 'fish.js'),
         'lint',
         '-dir'
     ]
@@ -188,13 +206,13 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files)
     """
     if len(changed_java_files) == 0:
         return
-    output_file = os.path.join(output_path, "spotbugs_result.html")
+    output_file = path.join(output_path, "spotbugs_result.html")
     delete_result_file(output_file)
     classes_names = [get_package_name(x) for x in changed_java_files]
     cmd = [
         'java',
         '-jar',
-        os.path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
+        path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
         '-textui',
         '-quiet',
         '-onlyAnalyze',
@@ -205,18 +223,34 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files)
     run(cmd)
 
 
-def check(project_path, tool_set_path, output_folder):
+def start_web_page(output_folder, web_port):
+    print(f'visit http://localhost:{web_port}')
+    in_use = port_is_valid(web_port)
+    if not in_use:
+        cmd = [
+            'python',
+            '-m',
+            'http.server',
+            '-d',
+            output_folder,
+            str(web_port)
+        ]
+        run(cmd)
+
+
+def check(project_path, tool_set_path, output_folder, web_port):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
     :param tool_set_path: 执行检查使用的工具集的路径
     :param output_folder: 检查结果输出文件的存放文件夹名称。默认为target
+    :param web_port: 发布检查结果页面的web应用端口
     :return:
     """
-    if not os.path.exists(project_path):
+    if not path.exists(project_path):
         print('project does not exist')
         return
-    if not os.path.exists(tool_set_path):
+    if not path.exists(tool_set_path):
         print('tool set does not exist')
         return
     repo = git.Repo(project_path)
@@ -230,14 +264,14 @@ def check(project_path, tool_set_path, output_folder):
     for item in changed_files:
         a_path = item.a_path
         if a_path.endswith('.java'):
-            changed_java_files.append(os.path.join(project_path, a_path))
+            changed_java_files.append(path.join(project_path, a_path))
             changed_java_files_short.append(a_path)
         elif a_path.endswith('.js'):
-            changed_js_files.append(os.path.join(project_path, a_path))
+            changed_js_files.append(path.join(project_path, a_path))
 
     output_folder = 'check_result' if output_folder is None else output_folder
-    full_output_path = os.path.join(project_path, output_folder)
-    if not os.path.exists(full_output_path):
+    full_output_path = path.join(project_path, output_folder)
+    if not path.exists(full_output_path):
         os.makedirs(full_output_path)
 
     print('begin to execute checkstyle check')
@@ -260,14 +294,22 @@ def check(project_path, tool_set_path, output_folder):
     run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files_short)
     print('spotbugs check finished')
 
+    start_web_page(full_output_path, web_port)
 
-if __name__ == '__main__':
+
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', '-p', required=True, help='path of project directory')
     parser.add_argument('--tool', '-t', required=True, help='path of check tool set parent directory')
     parser.add_argument('--output', '-o', required=False, help='sub folder name of check result file')
+    parser.add_argument('--port', required=False, default=12345, type=int, help='server port')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
     output = args.output
-    check(project, tool, output)
+    port = args.port
+    check(project, tool, output, port)
+
+
+if __name__ == '__main__':
+    main()
