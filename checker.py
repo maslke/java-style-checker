@@ -20,7 +20,7 @@ def run(cmd):
     :param cmd: 命令参数
     :return:
     """
-    print(' '.join(cmd), end='')
+    print(' '.join(cmd), end=os.linesep)
     process = subprocess.run(cmd)
     return_code = process.returncode
     print(return_code)
@@ -58,9 +58,9 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
         '-f',
         'xml',
         '-o',
-        output_file,
-        ' '.join(changed_java_files)
+        output_file
     ]
+    cmd.extend(changed_java_files)
     run(cmd)
 
 
@@ -80,7 +80,7 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files):
     cmd = [
         os.path.join(tool_set_path, 'PMD', 'bin', program),
         '-d',
-        ' '.join(changed_java_files),
+        ','.join(changed_java_files),
         '-R',
         os.path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
         '-f',
@@ -134,9 +134,9 @@ def run_lizard_check(output_path, changed_java_files):
         '-C',
         '10',
         '-o',
-        output_file,
-        ' '.join(changed_java_files)
+        output_file
     ]
+    cmd.extend(changed_java_files)
     run(cmd)
 
 
@@ -157,12 +157,10 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
         '--max-old-space-size=1000',
         os.path.join(tool_set_path, 'fish-cli', 'bin', 'fish.js'),
         'lint',
-        '-dir',
-        ' '.join(changed_js_files),
-        '-noCreateFileLog',
-        '-f',
-        f'xml>{output_file}'
+        '-dir'
     ]
+    cmd.extend(changed_js_files)
+    cmd.extend(['-noCreateFileLog', '-f', f'xml>{output_file}'])
     run(cmd)
 
 
@@ -173,7 +171,10 @@ def get_package_name(java_file):
     :return:
     """
     java_file = java_file.replace('/', '.')
-    return java_file.partition('src.main.java.')[-1].partition('.java')[0]
+    if 'src.main.java' in java_file:
+        return java_file.partition('src.main.java.')[-1].partition('.java')[0]
+    elif 'src.test.java' in java_file:
+        return java_file.partition('src.test.java.')[-1].partition('.java')[0]
 
 
 def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files):
