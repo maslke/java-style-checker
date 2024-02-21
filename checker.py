@@ -238,12 +238,13 @@ def start_web_page(output_folder, web_port):
         run(cmd)
 
 
-def check(project_path, tool_set_path, output_folder, web_port):
+def check(project_path, tool_set_path, output_folder, start_web, web_port):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
     :param tool_set_path: 执行检查使用的工具集的路径
     :param output_folder: 检查结果输出文件的存放文件夹名称。默认为target
+    :param start_web: 是否开启web server
     :param web_port: 发布检查结果页面的web应用端口
     :return:
     """
@@ -253,24 +254,23 @@ def check(project_path, tool_set_path, output_folder, web_port):
     if not path.exists(tool_set_path):
         print('tool set does not exist')
         return
-    repo = git.Repo(project_path)
+    repo = git.Repo(project_path, search_parent_directories=True)
+    git_address = repo.working_tree_dir
     latest_commit = repo.head.commit
     changed_files = latest_commit.diff(latest_commit.parents[0])
 
     changed_java_files = list()
     changed_js_files = list()
-    changed_java_files_short = list()
 
     for item in changed_files:
         a_path = item.a_path
         if a_path.endswith('.java'):
-            changed_java_files.append(path.join(project_path, a_path))
-            changed_java_files_short.append(a_path)
+            changed_java_files.append(path.join(git_address, a_path))
         elif a_path.endswith('.js'):
-            changed_js_files.append(path.join(project_path, a_path))
+            changed_js_files.append(path.join(git_address, a_path))
 
     output_folder = 'check_result' if output_folder is None else output_folder
-    full_output_path = path.join(project_path, output_folder)
+    full_output_path = path.join(git_address, output_folder)
     if not path.exists(full_output_path):
         os.makedirs(full_output_path)
 
@@ -286,15 +286,20 @@ def check(project_path, tool_set_path, output_folder, web_port):
     run_pmd_check(tool_set_path, full_output_path, changed_java_files)
     print('pmd check finished')
 
+    print('execute simian check')
+    run_simian_check(tool_set_path, full_output_path, changed_java_files)
+    print('simian check finished')
+
     print('execute eslint check')
     run_eslint_check(tool_set_path, full_output_path, changed_js_files)
     print('eslint check finished')
 
     print('execute spotbugs check')
-    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files_short)
+    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files)
     print('spotbugs check finished')
 
-    start_web_page(full_output_path, web_port)
+    if start_web:
+        start_web_page(full_output_path, web_port)
 
 
 def main():
@@ -302,13 +307,15 @@ def main():
     parser.add_argument('--project', '-p', required=True, help='path of project directory')
     parser.add_argument('--tool', '-t', required=True, help='path of check tool set parent directory')
     parser.add_argument('--output', '-o', required=False, help='sub folder name of check result file')
+    parser.add_argument('--web', '-w', required=False, default=False, type=bool, help='enable web server')
     parser.add_argument('--port', required=False, default=12345, type=int, help='server port')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
     output = args.output
     port = args.port
-    check(project, tool, output, port)
+    web = args.web
+    check(project, tool, output, web, port)
 
 
 if __name__ == '__main__':
