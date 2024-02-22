@@ -42,6 +42,19 @@ def run(cmd):
     print(return_code)
 
 
+def run_and_redirect(cmd, output_file):
+    """
+    调用系统命令，并将执行结果输出到文件中
+    :param cmd: 命令参数
+    :param output_file: 保存输出结果文件
+    :return:
+    """
+    print(' '.join(cmd), end=os.linesep)
+    with open(output_file, 'w') as f:
+        return_code = subprocess.call(cmd, shell=True, stdout=f)
+        print(return_code)
+
+
 def delete_result_file(result_file):
     """
     在文件存在的情况下，删除文件
@@ -178,8 +191,8 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
         '-dir'
     ]
     cmd.extend(changed_js_files)
-    cmd.extend(['-noCreateFileLog', '-f', f'xml>{output_file}'])
-    run(cmd)
+    cmd.extend(['-noCreateFileLog', '-f', f'xml'])
+    run_and_redirect(cmd, output_file)
 
 
 def get_package_name(java_file):
