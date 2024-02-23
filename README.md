@@ -10,25 +10,31 @@
 
 ## 使用说明
 
+### 依赖
+
+1. 环境变量中配置`java`、`node`、`python`变量。其中，`python`要求`python3`。
+2. 使用`pip`安装`lizard`、`gitpython`、`jinja2`。
+
 ### 命令行调用
 
-1. 查看帮助
+#### 查看帮助
 
 ```shell
 python3 checker.py -h
 ```
-2. 参数说明
+
+#### 参数说明
 
 | 参数名称         | 说明                      | 是否必须    | 默认值                |
 |--------------|-------------------------|---------|--------------------|
 | --project,-p | 工程根目录                   | `True`  | /                  |
 | --tool, -t   | 检查工具集根目录                | `True`  | /                  |
-| --output, -o | 检查结果输出文件名录名称            | `False` | 工程根目录/check_result |
+| --output, -o | 检查结果输出路径                | `False` | 工程根目录/check_result |
 | --web, -w    | 是否开启web server来查看检查结果文件 | `False` | `False`            |
 | --port       | web server使用的端口号        | `False` | `12345`            |
 
 ### idea/webstorm中配置外部工具
 
 1. program：`python`
-2. Arguments：`/path/to/checker.py -p $ProjectFileDir$ -t /path/to/tool_set -o $ProjectFileDir$/check_result`
+2. Arguments：`/path/to/checker.py -p $ProjectFileDir$`
 3. Working directory：`$ProjectFileDir$`

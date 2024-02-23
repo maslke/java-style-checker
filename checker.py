@@ -5,6 +5,7 @@ import platform
 import socket
 import os
 from os import path
+import psutil
 
 
 def port_is_valid(web_port):
@@ -21,6 +22,33 @@ def port_is_valid(web_port):
         return False
 
 
+def kill_process_using_port(port):
+    command = f"netstat -ano | findstr {port}"
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    pid = result.stdout.split()[-1]
+    if pid:
+        subprocess.run(f"taskkill /F /PID {pid}", shell=True)
+        print(f'Process with PID {pid} killed successfully.')
+
+
+def kill_process_using_port_psutil(port):
+    """
+    杀掉占用端口的进程
+    :param port: 端口号
+    :return:
+    """
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            for conns in proc.connections(kind='inet'):
+                if conns.laddr.port == port:
+                    proc.kill()
+                    print(f"Process with PID {proc.pid} killed successfully.")
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.AccessDenied:
+            pass
+
+
 def is_windows():
     """
     判断是否是windows平台
@@ -28,6 +56,21 @@ def is_windows():
     """
     os_platform = platform.system()
     return os_platform == 'Windows'
+
+
+def delete_result_file(output_path):
+    """
+    删除文件夹下的所有文件和文件夹
+    :param output_path: 文件夹路径
+    :return:
+    """
+    for item in os.listdir(output_path):
+        full_name = os.path.join(output_path, item)
+        if os.path.isfile(full_name):
+            os.remove(os.path.join(output_path, item))
+        elif os.path.isdir(full_name):
+            delete_result_file(full_name)
+            os.removedirs(full_name)
 
 
 def run(cmd):
@@ -55,16 +98,6 @@ def run_and_redirect(cmd, output_file):
         print(return_code)
 
 
-def delete_result_file(result_file):
-    """
-    在文件存在的情况下，删除文件
-    :param result_file: 文件路径
-    :return:
-    """
-    if path.exists(result_file):
-        os.remove(result_file)
-
-
 def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
     """
     执行checkstyle检测
@@ -76,7 +109,6 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, 'checkstyle-result.xml')
-    delete_result_file(output_file)
     cmd = [
         'java',
         f'-Dcheckstyle.suppressions.file={path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
@@ -104,7 +136,6 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files):
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, 'JavaPMD_Result.xml')
-    delete_result_file(output_file)
     program = 'pmd.bat' if is_windows() else 'run.sh'
     cmd = [
         path.join(tool_set_path, 'PMD', 'bin', program),
@@ -133,15 +164,14 @@ def run_simian_check(tool_set_path, output_path, changed_java_files):
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, "simian_result.xml")
-    delete_result_file(output_file)
     cmd = [
         'java',
         '-jar',
         path.join(tool_set_path, 'simian-2.3.33', 'bin', 'simian-2.3.33.jar'),
         '-threshold=20',
-        f'-formatter=xml:{output_file}',
-        ' '.join(changed_java_files)
+        f'-formatter=xml:{output_file}'
     ]
+    cmd.extend(changed_java_files)
     run(cmd)
 
 
@@ -155,7 +185,6 @@ def run_lizard_check(output_path, changed_java_files):
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, 'lizard_result.html')
-    delete_result_file(output_file)
     cmd = [
         'python',
         '-m',
@@ -182,7 +211,6 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     if len(changed_js_files) == 0:
         return
     output_file = path.join(output_path, "eslint_result.xml")
-    delete_result_file(output_file)
     cmd = [
         'node',
         '--max-old-space-size=1000',
@@ -191,7 +219,7 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
         '-dir'
     ]
     cmd.extend(changed_js_files)
-    cmd.extend(['-noCreateFileLog', '-f', f'xml'])
+    cmd.extend(['-noCreateFileLog', '-f', 'xml'])
     run_and_redirect(cmd, output_file)
 
 
@@ -220,7 +248,6 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files)
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, "spotbugs_result.html")
-    delete_result_file(output_file)
     classes_names = [get_package_name(x) for x in changed_java_files]
     cmd = [
         'java',
@@ -237,27 +264,32 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files)
 
 
 def start_web_page(output_folder, web_port):
+    """
+    开启web server
+    :param output_folder: 目录
+    :param web_port: web server 端口
+    :return:
+    """
     print(f'visit http://localhost:{web_port}')
-    in_use = port_is_valid(web_port)
-    if not in_use:
-        cmd = [
-            'python',
-            '-m',
-            'http.server',
-            '-d',
-            output_folder,
-            str(web_port)
-        ]
-        run(cmd)
+    kill_process_using_port_psutil(web_port)
+    cmd = [
+        'python',
+        '-m',
+        'http.server',
+        '-d',
+        output_folder,
+        str(web_port)
+    ]
+    run(cmd)
 
 
-def check(project_path, tool_set_path, output_folder, start_web, web_port):
+def check(project_path, tool_set_path, output_path, start_web, web_port):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
     :param tool_set_path: 执行检查使用的工具集的路径
-    :param output_folder: 检查结果输出文件的存放文件夹名称。默认为target
-    :param start_web: 是否开启web server
+    :param output_path: 检查结果输出文件的存放路径
+    :param start_web: 是否启用web server
     :param web_port: 发布检查结果页面的web应用端口
     :return:
     """
@@ -282,34 +314,30 @@ def check(project_path, tool_set_path, output_folder, start_web, web_port):
         elif a_path.endswith('.js'):
             changed_js_files.append(path.join(git_address, a_path))
 
-    output_folder = 'check_result' if output_folder is None else output_folder
-    full_output_path = path.join(git_address, output_folder)
+    full_output_path = output_path if output_path else os.path.join(project_path, 'check_result')
     if not path.exists(full_output_path):
         os.makedirs(full_output_path)
+    else:
+        print('delete result files first')
+        delete_result_file(full_output_path)
 
     print('begin to execute checkstyle check')
     run_checkstyle_check(tool_set_path, full_output_path, changed_java_files)
-    print('checkstyle check finished')
-
-    print('execute lizard check')
-    run_lizard_check(full_output_path, changed_java_files)
-    print('lizard check finished')
-
-    print('execute pmd check')
-    run_pmd_check(tool_set_path, full_output_path, changed_java_files)
-    print('pmd check finished')
 
     print('execute simian check')
     run_simian_check(tool_set_path, full_output_path, changed_java_files)
-    print('simian check finished')
+
+    print('execute pmd check')
+    run_pmd_check(tool_set_path, full_output_path, changed_java_files)
 
     print('execute eslint check')
     run_eslint_check(tool_set_path, full_output_path, changed_js_files)
-    print('eslint check finished')
 
     print('execute spotbugs check')
     run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files)
-    print('spotbugs check finished')
+
+    print('execute lizard check')
+    run_lizard_check(full_output_path, changed_java_files)
 
     if start_web:
         start_web_page(full_output_path, web_port)
@@ -318,9 +346,11 @@ def check(project_path, tool_set_path, output_folder, start_web, web_port):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', '-p', required=True, help='path of project directory')
-    parser.add_argument('--tool', '-t', required=True, help='path of check tool set parent directory')
-    parser.add_argument('--output', '-o', required=False, help='sub folder name of check result file')
-    parser.add_argument('--web', '-w', required=False, default=False, type=bool, help='enable web server')
+    parser.add_argument('--tool', '-t', required=False,
+                        default=f'{os.path.dirname(os.path.abspath(__file__))}/tool_set',
+                        type=str, help='path of check tool set parent directory')
+    parser.add_argument('--output', '-o', required=False, help='path of check result file')
+    parser.add_argument('--web', action='store_true', default=False, help='need to start web server')
     parser.add_argument('--port', required=False, default=12345, type=int, help='server port')
     args = parser.parse_args()
     tool = args.tool
