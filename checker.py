@@ -1,10 +1,12 @@
 import argparse
-import git
 import subprocess
 import platform
 import socket
+import re
 import os
 from os import path
+
+import git
 import psutil
 
 
@@ -98,12 +100,13 @@ def run_and_redirect(cmd, output_file):
         print(return_code)
 
 
-def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
+def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *, exclude_files_path=None):
     """
     执行checkstyle检测
     :param tool_set_path: 工具集根路径
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
+    :param exclude_files_path: 例外文件的目录
     :return:
     """
     if len(changed_java_files) == 0:
@@ -121,26 +124,39 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files):
         '-o',
         output_file
     ]
-    cmd.extend(changed_java_files)
+
+    left_java_files = changed_java_files
+    if exclude_files_path:
+        exclude_files = read_from_exlcude_files(path.join(exclude_files_path, 'CheckStyle_Conf.txt'))
+        left_java_files = filter_files(exclude_files, changed_java_files)
+
+    cmd.extend(left_java_files)
     run(cmd)
 
 
-def run_pmd_check(tool_set_path, output_path, changed_java_files):
+def run_pmd_check(tool_set_path, output_path, changed_java_files, *, exclude_files_path=None):
     """
     执行pmd检测
     :param tool_set_path: 工具集根路径
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
+    :param exclude_files_path: 例外文件目录
     :return:
     """
     if len(changed_java_files) == 0:
         return
     output_file = path.join(output_path, 'JavaPMD_Result.xml')
     program = 'pmd.bat' if is_windows() else 'run.sh'
+
+    left_java_files = changed_java_files
+    if exclude_files_path:
+        exclude_files = read_from_exlcude_files(path.join(exclude_files_path, 'JavaPMD_Conf.txt'))
+        left_java_files = filter_files(exclude_files, changed_java_files)
+
     cmd = [
         path.join(tool_set_path, 'PMD', 'bin', program),
         '-d',
-        ','.join(changed_java_files),
+        ','.join(left_java_files),
         '-R',
         path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
         '-f',
@@ -283,7 +299,43 @@ def start_web_page(output_folder, web_port):
     run(cmd)
 
 
-def check(project_path, tool_set_path, output_path, start_web, web_port):
+def filter_files(exclude_files, changed_java_files):
+    left_java_files = []
+    if len(exclude_files) == 0:
+        left_java_files = changed_java_files
+        return left_java_files
+    for java_file in changed_java_files:
+        for exclude_file in exclude_files:
+            if re.search(exclude_file, java_file):
+                break
+        else:
+            left_java_files.append(java_file)
+    return left_java_files
+
+
+def read_from_exlcude_files(full_name_path):
+    """
+    从配置文件中读取例外文件配置
+    :param full_name_path: 例外文件全路径
+    :return: List[str]
+    """
+    excludes_files = []
+    has_begin = False
+    lines = []
+    with open(full_name_path, 'r') as fp:
+        lines.extend(fp.readlines())
+    for line in lines:
+        if line == '[EXCLUDE]':
+            has_begin = True
+            continue
+        if has_begin and line == '[INCLUDE]':
+            break
+        if has_begin and not line.startswith('#'):
+            excludes_files.append(line)
+    return excludes_files
+
+
+def check(project_path, tool_set_path, output_path, start_web, web_port, *, exclude_files_path):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -291,6 +343,7 @@ def check(project_path, tool_set_path, output_path, start_web, web_port):
     :param output_path: 检查结果输出文件的存放路径
     :param start_web: 是否启用web server
     :param web_port: 发布检查结果页面的web应用端口
+    :param exclude_files_path: 例外文件的配置目录
     :return:
     """
     if not path.exists(project_path):
@@ -322,13 +375,13 @@ def check(project_path, tool_set_path, output_path, start_web, web_port):
         delete_result_file(full_output_path)
 
     print('begin to execute checkstyle check')
-    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files)
+    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
 
     print('execute simian check')
     run_simian_check(tool_set_path, full_output_path, changed_java_files)
 
     print('execute pmd check')
-    run_pmd_check(tool_set_path, full_output_path, changed_java_files)
+    run_pmd_check(tool_set_path, full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
 
     print('execute eslint check')
     run_eslint_check(tool_set_path, full_output_path, changed_js_files)
@@ -352,13 +405,15 @@ def main():
     parser.add_argument('--output', '-o', required=False, help='path of check result file')
     parser.add_argument('--web', action='store_true', default=False, help='need to start web server')
     parser.add_argument('--port', required=False, default=12345, type=int, help='server port')
+    parser.add_argument('--exclude', '-e', required=False, help='path of exclude files')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
     output = args.output
     port = args.port
     web = args.web
-    check(project, tool, output, web, port)
+    exclude = args.exclude
+    check(project, tool, output, web, port, exclude_files_path=exclude)
 
 
 if __name__ == '__main__':
