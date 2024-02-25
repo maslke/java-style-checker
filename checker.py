@@ -127,8 +127,10 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *, excl
 
     left_java_files = changed_java_files
     if exclude_files_path:
-        exclude_files = read_from_exlcude_files(path.join(exclude_files_path, 'CheckStyle_Conf.txt'))
+        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'CheckStyle_Conf.txt'))
         left_java_files = filter_files(exclude_files, changed_java_files)
+    if len(left_java_files) == 0:
+        return
 
     cmd.extend(left_java_files)
     run(cmd)
@@ -150,8 +152,10 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, exclude_fil
 
     left_java_files = changed_java_files
     if exclude_files_path:
-        exclude_files = read_from_exlcude_files(path.join(exclude_files_path, 'JavaPMD_Conf.txt'))
+        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'JavaPMD_Conf.txt'))
         left_java_files = filter_files(exclude_files, changed_java_files)
+    if len(left_java_files) == 0:
+        return
 
     cmd = [
         path.join(tool_set_path, 'PMD', 'bin', program),
@@ -169,12 +173,13 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, exclude_fil
     run(cmd)
 
 
-def run_simian_check(tool_set_path, output_path, changed_java_files):
+def run_simian_check(tool_set_path, output_path, changed_java_files, *, exclude_files_path=None):
     """
     执行重复代码检测，阈值为20行
     :param tool_set_path: 工具集根路径
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
+    :param exclude_files_path: 例外文件目录
     :return:
     """
     if len(changed_java_files) == 0:
@@ -187,15 +192,24 @@ def run_simian_check(tool_set_path, output_path, changed_java_files):
         '-threshold=20',
         f'-formatter=xml:{output_file}'
     ]
-    cmd.extend(changed_java_files)
+    left_java_files = changed_java_files
+    if exclude_files_path:
+        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'Simian_Conf.txt'))
+        left_java_files = filter_files(exclude_files, changed_java_files)
+
+    if len(left_java_files) == 0:
+        return
+
+    cmd.extend(left_java_files)
     run(cmd)
 
 
-def run_lizard_check(output_path, changed_java_files):
+def run_lizard_check(output_path, changed_java_files, *, exclude_files_path=None):
     """
     执行圈复杂度检测，检测阈值为10
     :param output_path: 检插结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
+    :param exclude_files_path: 例外文件目录
     :return:
     """
     if len(changed_java_files) == 0:
@@ -212,7 +226,12 @@ def run_lizard_check(output_path, changed_java_files):
         '-o',
         output_file
     ]
-    cmd.extend(changed_java_files)
+    left_java_files = changed_java_files
+    if exclude_files_path:
+        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'JavaNCSS_Conf.txt'))
+        left_java_files = filter_files(exclude_files, changed_java_files)
+
+    cmd.extend(left_java_files)
     run(cmd)
 
 
@@ -252,19 +271,29 @@ def get_package_name(java_file):
         return java_file.partition('src.test.java.')[-1].partition('.java')[0]
 
 
-def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files):
+def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files, *, exclude_files_path=None):
     """
     执行spotbugs检测
     :param project_path: 工程目录
     :param tool_path: 工具集根目录
     :param output_path: 检查结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
+    :param exclude_files_path: 例外文件目录
     :return:
     """
     if len(changed_java_files) == 0:
         return
+
+    left_java_files = changed_java_files
+    if exclude_files_path:
+        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'FindBugs_Conf.txt'))
+        left_java_files = filter_files(exclude_files, changed_java_files)
+
+    if len(left_java_files) == 0:
+        return
+
     output_file = path.join(output_path, "spotbugs_result.html")
-    classes_names = [get_package_name(x) for x in changed_java_files]
+    classes_names = [get_package_name(x) for x in left_java_files]
     cmd = [
         'java',
         '-jar',
@@ -300,20 +329,26 @@ def start_web_page(output_folder, web_port):
 
 
 def filter_files(exclude_files, changed_java_files):
+    """
+    根据例外文件，过滤需要进行检查的文件
+    :param exclude_files: 例外文件
+    :param changed_java_files: 变动的文件
+    :return:
+    """
     left_java_files = []
     if len(exclude_files) == 0:
         left_java_files = changed_java_files
         return left_java_files
     for java_file in changed_java_files:
         for exclude_file in exclude_files:
-            if re.search(exclude_file, java_file):
+            if re.search(exclude_file, java_file) or exclude_file in java_file:
                 break
         else:
             left_java_files.append(java_file)
     return left_java_files
 
 
-def read_from_exlcude_files(full_name_path):
+def read_from_exclude_files(full_name_path):
     """
     从配置文件中读取例外文件配置
     :param full_name_path: 例外文件全路径
@@ -335,23 +370,12 @@ def read_from_exlcude_files(full_name_path):
     return excludes_files
 
 
-def check(project_path, tool_set_path, output_path, start_web, web_port, *, exclude_files_path):
+def get_changed_files(project_path):
     """
-    执行代码规范检查
-    :param project_path: 工程文件路径
-    :param tool_set_path: 执行检查使用的工具集的路径
-    :param output_path: 检查结果输出文件的存放路径
-    :param start_web: 是否启用web server
-    :param web_port: 发布检查结果页面的web应用端口
-    :param exclude_files_path: 例外文件的配置目录
-    :return:
+    根据commit，获取变动的文件列表
+    :param project_path: 工程目录
+    :return: (changed_java_files, changed_js_files)
     """
-    if not path.exists(project_path):
-        print('project does not exist')
-        return
-    if not path.exists(tool_set_path):
-        print('tool set does not exist')
-        return
     repo = git.Repo(project_path, search_parent_directories=True)
     git_address = repo.working_tree_dir
     latest_commit = repo.head.commit
@@ -366,6 +390,27 @@ def check(project_path, tool_set_path, output_path, start_web, web_port, *, excl
             changed_java_files.append(path.join(git_address, a_path))
         elif a_path.endswith('.js'):
             changed_js_files.append(path.join(git_address, a_path))
+    return changed_java_files, changed_js_files
+
+
+def check(project_path, tool_set_path, output_path, *, web, port, exclude_files_path):
+    """
+    执行代码规范检查
+    :param project_path: 工程文件路径
+    :param tool_set_path: 执行检查使用的工具集的路径
+    :param output_path: 检查结果输出文件的存放路径
+    :param web: 是否启用web server
+    :param port: 发布检查结果页面的web应用端口
+    :param exclude_files_path: 例外文件的配置目录
+    :return:
+    """
+    if not path.exists(project_path):
+        print('project does not exist')
+        return
+    if not path.exists(tool_set_path):
+        print('tool set does not exist')
+        return
+    changed_java_files, changed_js_files = get_changed_files(project_path)
 
     full_output_path = output_path if output_path else os.path.join(project_path, 'check_result')
     if not path.exists(full_output_path):
@@ -378,7 +423,7 @@ def check(project_path, tool_set_path, output_path, start_web, web_port, *, excl
     run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
 
     print('execute simian check')
-    run_simian_check(tool_set_path, full_output_path, changed_java_files)
+    run_simian_check(tool_set_path, full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
 
     print('execute pmd check')
     run_pmd_check(tool_set_path, full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
@@ -387,13 +432,14 @@ def check(project_path, tool_set_path, output_path, start_web, web_port, *, excl
     run_eslint_check(tool_set_path, full_output_path, changed_js_files)
 
     print('execute spotbugs check')
-    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files)
+    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
+                       exclude_files_path=exclude_files_path)
 
     print('execute lizard check')
-    run_lizard_check(full_output_path, changed_java_files)
+    run_lizard_check(full_output_path, changed_java_files, exclude_files_path=exclude_files_path)
 
-    if start_web:
-        start_web_page(full_output_path, web_port)
+    if web:
+        start_web_page(full_output_path, port)
 
 
 def main():
@@ -413,7 +459,7 @@ def main():
     port = args.port
     web = args.web
     exclude = args.exclude
-    check(project, tool, output, web, port, exclude_files_path=exclude)
+    check(project, tool, output, web=web, port=port, exclude_files_path=exclude)
 
 
 if __name__ == '__main__':
