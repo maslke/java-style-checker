@@ -1,0 +1,3 @@
+#!/bin/bash
+repository_path=$(git rev-parse --show-toplevel)
+python checker.py --project $repository_path
