@@ -67,6 +67,18 @@ def is_windows():
     return os_platform == 'Windows'
 
 
+def delete_eslint_temp_files(output_path):
+    """
+    删除执行eslint检查产生的临时文件
+    :param output_path: 临时文件目录
+    :return:
+    """
+    for item in os.listdir(output_path):
+        full_name = path.join(output_path, item)
+        if os.path.isfile(full_name) and (full_name.endswith('.js') or item.startswith('.')):
+            os.remove(full_name)
+
+
 def delete_result_file(output_path):
     """
     删除文件夹下的所有文件和文件夹
@@ -74,9 +86,9 @@ def delete_result_file(output_path):
     :return:
     """
     for item in os.listdir(output_path):
-        full_name = os.path.join(output_path, item)
+        full_name = path.join(output_path, item)
         if os.path.isfile(full_name):
-            os.remove(os.path.join(output_path, item))
+            os.remove(full_name)
         elif os.path.isdir(full_name):
             delete_result_file(full_name)
             os.removedirs(full_name)
@@ -90,8 +102,7 @@ def run(cmd):
     """
     print(' '.join(cmd), end=os.linesep)
     process = subprocess.run(cmd)
-    return_code = process.returncode
-    print(return_code)
+    return process.returncode
 
 
 def run_and_redirect(cmd, output_file):
@@ -104,7 +115,8 @@ def run_and_redirect(cmd, output_file):
     print(' '.join(cmd), end=os.linesep)
     with open(output_file, 'w') as f:
         return_code = subprocess.call(cmd, shell=True, stdout=f)
-        print(return_code)
+
+    return return_code
 
 
 def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
@@ -119,8 +131,9 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
     :return:
     """
     if len(changed_java_files) == 0:
-        return
-    output_file = path.join(output_path, 'checkstyle-result.xml')
+        print('no files to run checkstyle check')
+        return -1
+    output_file = path.join(output_path, 'checkstyle_result.xml')
     cmd = [
         'java',
         f'-Dcheckstyle.suppressions.file={path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
@@ -140,10 +153,11 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
     else:
         left_java_files = changed_java_files[:]
     if len(left_java_files) == 0:
-        return
+        print('no files to run checkstyle check')
+        return -1
 
     cmd.extend(left_java_files)
-    run(cmd)
+    return run(cmd)
 
 
 def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
@@ -157,8 +171,9 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
     :return:
     """
     if len(changed_java_files) == 0:
-        return
-    output_file = path.join(output_path, 'JavaPMD_Result.xml')
+        print('no files to run pmd check')
+        return -1
+    output_file = path.join(output_path, 'JavaPMD_result.xml')
     program = 'pmd.bat' if is_windows() else 'run.sh'
 
     if enable_exclude:
@@ -167,7 +182,8 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
     else:
         left_java_files = changed_java_files[:]
     if len(left_java_files) == 0:
-        return
+        print('no files to run pmd check')
+        return -1
 
     cmd = [
         path.join(tool_set_path, 'PMD', 'bin', program),
@@ -182,7 +198,7 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
     ]
     if not is_windows():
         cmd.insert(1, 'pmd')
-    run(cmd)
+    return run(cmd)
 
 
 def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
@@ -196,7 +212,8 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
     :return:
     """
     if len(changed_java_files) == 0:
-        return
+        print('no files to run simian check')
+        return -1
     shutil.copyfile(path.join(tool_set_path, 'simian-2.3.33', 'simian.xsl'), path.join(output_path, 'simian.xsl'))
     output_file = path.join(output_path, "simian_result.xml")
     cmd = [
@@ -213,10 +230,11 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
     else:
         left_java_files = changed_java_files[:]
     if len(left_java_files) == 0:
-        return
+        print('no files to run simian check')
+        return -1
 
     cmd.extend(left_java_files)
-    run(cmd)
+    return run(cmd)
 
 
 def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
@@ -229,7 +247,8 @@ def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False,
     :return:
     """
     if len(changed_java_files) == 0:
-        return
+        print('no files to run javancss check')
+        return -1
     output_file = path.join(output_path, 'lizard_result.html')
     cmd = [
         'python',
@@ -249,10 +268,11 @@ def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False,
     else:
         left_java_files = changed_java_files[:]
     if len(left_java_files) == 0:
-        return
+        print('no files to run javancss check')
+        return -1
 
     cmd.extend(left_java_files)
-    run(cmd)
+    return run(cmd)
 
 
 def run_eslint_check(tool_set_path, output_path, changed_js_files):
@@ -264,7 +284,8 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     :return:
     """
     if len(changed_js_files) == 0:
-        return
+        print('no files to run eslint check')
+        return -1
     output_file = path.join(output_path, "eslint_result.xml")
     cmd = [
         'node',
@@ -275,7 +296,7 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     ]
     cmd.extend(changed_js_files)
     cmd.extend(['-noCreateFileLog', '-f', 'xml'])
-    run_and_redirect(cmd, output_file)
+    return run_and_redirect(cmd, output_file)
 
 
 def get_package_name(java_file):
@@ -304,7 +325,8 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     :return:
     """
     if len(changed_java_files) == 0:
-        return
+        print('no files to run spotbugs check')
+        return -1
 
     if enable_exclude:
         left_java_files = filter_files(exclude_files_path, 'FindBugs_Conf.txt', changed_java_files,
@@ -313,7 +335,8 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     else:
         left_java_files = changed_java_files[:]
     if len(left_java_files) == 0:
-        return
+        print('no files to run spotbugs check')
+        return -1
 
     output_file = path.join(output_path, "spotbugs_result.html")
     classes_names = [get_package_name(x) for x in left_java_files]
@@ -328,7 +351,7 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
         f'-html={output_file}',
         project_path
     ]
-    run(cmd)
+    return run(cmd)
 
 
 def start_web_page(output_folder, web_port):
@@ -430,7 +453,7 @@ def get_files_list(git_address, changed_files, disable_test=False):
     return changed_java_files, changed_js_files
 
 
-def get_last_commited_files(repo, disable_test=False):
+def get_last_committed_files(repo, disable_test=False):
     """
     从repo中根据commit，获取变动的文件列表
     :param repo:
@@ -480,7 +503,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         return
     repo = get_repo(project_path)
     git_address = repo.working_tree_dir
-    changed_java_files, changed_js_files = get_last_commited_files(repo, disable_test)\
+    changed_java_files, changed_js_files = get_last_committed_files(repo, disable_test)\
         if mode == '1' else get_changed_files(repo, disable_test)
 
     full_output_path = output_path if output_path else os.path.join(project_path, 'check_result')
@@ -496,27 +519,31 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
             exclude_files_path = os.path.join(project_path, 'CI_Config')
 
     print('begin to execute checkstyle check')
-    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files,
-                         enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
-
+    code = run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                                exclude_files_path=exclude_files_path)
+    print(f'checkstyle check finished:{code}')
     print('execute simian check')
-    run_simian_check(tool_set_path, full_output_path, changed_java_files,
-                     enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
-
+    code = run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                            exclude_files_path=exclude_files_path)
+    print(f'simian checked finished:{code}')
     print('execute pmd check')
-    run_pmd_check(tool_set_path, full_output_path, changed_java_files,
-                  enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
-
+    code = run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                         exclude_files_path=exclude_files_path)
+    delete_eslint_temp_files(full_output_path)
+    print(f'pmd check finished:{code}')
     print('execute eslint check')
-    run_eslint_check(tool_set_path, full_output_path, changed_js_files)
-
+    code = run_eslint_check(tool_set_path, full_output_path, changed_js_files)
+    print(f'eslint check finished:{code}')
     print('execute spotbugs check')
-    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
-                       enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
+    code = run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
+                              enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
 
+    print(f'spotbugs check finished:{code}')
     print('execute javancss check')
-    run_javancss_check(full_output_path, changed_java_files,
-                       enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
+    code = run_javancss_check(full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                              exclude_files_path=exclude_files_path)
+    print(f'javancss check finished:{code}')
+    print('all check finished')
 
     if enable_web:
         start_web_page(full_output_path, port)
