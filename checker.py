@@ -412,29 +412,53 @@ def get_repo(project_path):
     return git.Repo(project_path, search_parent_directories=True)
 
 
-def get_changed_files(repo):
+def get_files_list(git_address, changed_files, disable_test=False):
     """
-    从repo中根据commit，获取变动的文件列表
-    :param repo:
-    :return:
+    从文件列表中，删选出java文件和js文件
+    :param git_address: 仓库地址
+    :param changed_files: 变动的文件列表
+    :param disable_test: 不对测试代码进行检测
+    :return: (changed_java_files, changed_js_files)
     """
-    git_address = repo.working_tree_dir
-    latest_commit = repo.head.commit
-    changed_files = latest_commit.diff(latest_commit.parents[0])
-
     changed_java_files = list()
     changed_js_files = list()
-
-    for item in changed_files:
-        a_path = item.a_path
-        if a_path.endswith('.java'):
+    for a_path in changed_files:
+        if a_path.endswith('.java') and (not disable_test or 'src/test/' not in a_path):
             changed_java_files.append(path.join(git_address, a_path))
         elif a_path.endswith('.js'):
             changed_js_files.append(path.join(git_address, a_path))
     return changed_java_files, changed_js_files
 
 
-def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_exclude, exclude_files_path=None):
+def get_last_commited_files(repo, disable_test=False):
+    """
+    从repo中根据commit，获取变动的文件列表
+    :param repo:
+    :param disable_test: 不对测试代码检测
+    :return:
+    """
+    git_address = repo.working_tree_dir
+    latest_commit = repo.head.commit
+    changed_files = latest_commit.diff(latest_commit.parents[0])
+    return get_files_list(git_address, [item.a_path for item in changed_files], disable_test)
+
+
+def get_changed_files(repo, disable_test=False):
+    """
+    从repo中提取更改，还没提交的文件列表
+    :param repo:
+    :param disable_test: 不对测试代码进行检测
+    :return:
+    """
+    git_address = repo.working_tree_dir
+    changed_files = [item.a_path for item in repo.index.diff(None)]
+    changed_files.extend(repo.untracked_files)
+    return get_files_list(git_address, changed_files, disable_test)
+
+
+def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_exclude, exclude_files_path=None,
+          mode='1',
+          disable_test=False):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -444,6 +468,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param port: 发布检查结果页面的web应用端口
     :param enable_exclude: 是否开启例外文件过滤
     :param exclude_files_path: 例外文件路径
+    :param mode: 检查模式
+    :param disable_test: 不对测试代码执行检查
     :return:
     """
     if not path.exists(project_path):
@@ -454,7 +480,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         return
     repo = get_repo(project_path)
     git_address = repo.working_tree_dir
-    changed_java_files, changed_js_files = get_changed_files(repo)
+    changed_java_files, changed_js_files = get_last_commited_files(repo, disable_test)\
+        if mode == '1' else get_changed_files(repo, disable_test)
 
     full_output_path = output_path if output_path else os.path.join(project_path, 'check_result')
     if not path.exists(full_output_path):
@@ -502,11 +529,14 @@ def main():
                         default=f'{os.path.dirname(os.path.abspath(__file__))}/tool_set',
                         type=str, help='path of check tool set parent directory')
     parser.add_argument('--output', '-o', required=False, help='path of check result file')
-    parser.add_argument('--enable-web', action='store_true', default=False, help='whether to start web server')
+    parser.add_argument('--enable-web', action='store_true', required=False, help='whether to start web server')
     parser.add_argument('--port', required=False, default=12345, type=int, help='server port')
     parser.add_argument('--enable-exclude', action='store_true', required=False,
                         help='whether to enable exclude files config')
     parser.add_argument('--exclude-files-path', required=False, help='path of exclude files')
+    parser.add_argument('--mode', '-m', required=False, type=str, default='1',
+                        help='1 for check after committed, 2 for check before committed')
+    parser.add_argument('--disable-test', action='store_true', required=False, help='check test code or not')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
@@ -515,11 +545,15 @@ def main():
     enable_web = args.enable_web
     enable_exclude = args.enable_exclude
     exclude_files_path = args.exclude_files_path
+    mode = args.mode
+    disable_test = args.disable_test
     check(project, tool, output,
           enable_web=enable_web,
           port=port,
           enable_exclude=enable_exclude,
-          exclude_files_path=exclude_files_path)
+          exclude_files_path=exclude_files_path,
+          mode=mode,
+          disable_test=disable_test)
 
 
 if __name__ == '__main__':
