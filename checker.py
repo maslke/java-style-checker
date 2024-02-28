@@ -75,7 +75,7 @@ def delete_eslint_temp_files(output_path):
     """
     for item in os.listdir(output_path):
         full_name = path.join(output_path, item)
-        if os.path.isfile(full_name) and (full_name.endswith('.js') or item.startswith('.')):
+        if os.path.isfile(full_name) and (item.endswith('.js') or item.startswith('.')):
             os.remove(full_name)
 
 
@@ -102,6 +102,17 @@ def run(cmd):
     """
     print(' '.join(cmd), end=os.linesep)
     process = subprocess.run(cmd)
+    return process.returncode
+
+
+def run_in_none_blocking(cmd):
+    """
+    调用系统命令，不阻塞住线程
+    :param cmd: 命令参数
+    :return:
+    """
+    print(' '.join(cmd), end=os.linesep)
+    process = subprocess.Popen(cmd, shell=True)
     return process.returncode
 
 
@@ -371,7 +382,7 @@ def start_web_page(output_folder, web_port):
         output_folder,
         str(web_port)
     ]
-    run(cmd)
+    return run_in_none_blocking(cmd)
 
 
 def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
@@ -383,6 +394,9 @@ def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
     :param match 匹配函数
     :return:
     """
+
+    if not exclude_path:
+        return changed_java_files
 
     left_java_files = []
     exclude_files = read_from_exclude_files(path.join(exclude_path, exclude_file_name))
@@ -446,10 +460,11 @@ def get_files_list(git_address, changed_files, disable_test=False):
     changed_java_files = list()
     changed_js_files = list()
     for a_path in changed_files:
+        full_path = path.join(git_address, a_path)
         if a_path.endswith('.java') and (not disable_test or 'src/test/' not in a_path):
-            changed_java_files.append(path.join(git_address, a_path))
+            changed_java_files.append(full_path)
         elif a_path.endswith('.js'):
-            changed_js_files.append(path.join(git_address, a_path))
+            changed_js_files.append(full_path)
     return changed_java_files, changed_js_files
 
 
@@ -463,7 +478,8 @@ def get_last_committed_files(repo, disable_test=False):
     git_address = repo.working_tree_dir
     latest_commit = repo.head.commit
     changed_files = latest_commit.diff(latest_commit.parents[0])
-    return get_files_list(git_address, [item.a_path for item in changed_files], disable_test)
+    # 过滤掉删除类型的文件
+    return get_files_list(git_address, [item.a_path for item in changed_files if item.change_type != 'D'], disable_test)
 
 
 def get_changed_files(repo, disable_test=False):
@@ -515,8 +531,6 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     if not exclude_files_path:
         exclude_files_path = path.join(git_address, 'CI_Config')
-        if not path.exists(exclude_files_path):
-            exclude_files_path = os.path.join(project_path, 'CI_Config')
 
     print('begin to execute checkstyle check')
     code = run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
@@ -529,10 +543,10 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     print('execute pmd check')
     code = run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                          exclude_files_path=exclude_files_path)
-    delete_eslint_temp_files(full_output_path)
     print(f'pmd check finished:{code}')
     print('execute eslint check')
     code = run_eslint_check(tool_set_path, full_output_path, changed_js_files)
+    delete_eslint_temp_files(full_output_path)
     print(f'eslint check finished:{code}')
     print('execute spotbugs check')
     code = run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
