@@ -105,17 +105,6 @@ def run(cmd):
     return process.returncode
 
 
-def run_in_none_blocking(cmd):
-    """
-    调用系统命令，不阻塞住线程
-    :param cmd: 命令参数
-    :return:
-    """
-    print(' '.join(cmd), end=os.linesep)
-    process = subprocess.Popen(cmd, shell=True)
-    return process.returncode
-
-
 def run_and_redirect(cmd, output_file):
     """
     调用系统命令，并将执行结果输出到文件中
@@ -382,7 +371,7 @@ def start_web_page(output_folder, web_port):
         output_folder,
         str(web_port)
     ]
-    return run_in_none_blocking(cmd)
+    return run(cmd)
 
 
 def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
@@ -559,15 +548,18 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     print(f'javancss check finished:{code}')
     print('all check finished')
 
-    if enable_web:
-        start_web_page(full_output_path, port)
+    try:
+        if enable_web:
+            start_web_page(full_output_path, port)
+    except KeyboardInterrupt as e:
+        print(e)
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--project', '-p', required=True, help='path of project directory')
     parser.add_argument('--tool', '-t', required=False,
-                        default=f'{os.path.dirname(os.path.abspath(__file__))}/tool_set',
+                        default=path.join(os.path.dirname(os.path.abspath(__file__)), 'tool_set'),
                         type=str, help='path of check tool set parent directory')
     parser.add_argument('--output', '-o', required=False, help='path of check result file')
     parser.add_argument('--enable-web', action='store_true', required=False, help='whether to start web server')
