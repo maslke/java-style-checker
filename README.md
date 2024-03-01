@@ -19,8 +19,12 @@
 ### 依赖
 
 1. 环境变量中配置`java`、`node`、`python`变量。其中，`python`要求版本`python3`，不可使用`python2`版本。
-2. 使用`pip`安装`lizard`、`gitpython`、`jinja2`、`psutil`。
+2. 使用`pip`安装`lizard`、`gitpython`、`jinja2`、`psutil`、`lxml`。
+3. 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
 
+```shell
+pip install lxml -i https://pypi.tuna.tsinghua.edu.cn/simple/
+```
 
 ### 命令行调用
 
@@ -57,7 +61,7 @@ python /path/to/checker.py -p /path/to/project -mode 1
 python /path/to/checker.py -p /path/to/project
 ```
 
-- 未执行commit调用
+- 代码改动后未执行commit调用
 ```shell
 python /path/to/checker.py -p /path/to/project -mode 2
 ```
@@ -67,13 +71,13 @@ python /path/to/checker.py -p /path/to/project -mode 2
 python /path/to/checker.py -p /path/to/project -o /path/to/check_result_folder
 ```
 
-- 检查结果开启web server 查看
+- 检查结果开启 web server 查看检测结果
 
 ```shell
 python /path/to/checker.py -p /path/to/project --enable-web --port 12345
 ```
 
-- 开启例外文件配置，并自定义例外文件路径
+- 开启例外文件配置并自定义例外文件路径
 ```shell
 python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-files-path /path/to/CI_Config
 

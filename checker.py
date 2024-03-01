@@ -6,10 +6,10 @@ import fnmatch
 import re
 import os
 from os import path
-import shutil
 
 import git
 import psutil
+from lxml import etree
 
 
 def port_is_valid(web_port):
@@ -133,7 +133,7 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
     if len(changed_java_files) == 0:
         print('no files to run checkstyle check')
         return -1
-    output_file = path.join(output_path, 'checkstyle_result.xml')
+    output_file = path.join(output_path, 'Checkstyle_Result.xml')
     cmd = [
         'java',
         f'-Dcheckstyle.suppressions.file={path.join(tool_set_path, "checkstyle-8.3", "ruleFile", "suppressions.xml")}',
@@ -173,7 +173,7 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
     if len(changed_java_files) == 0:
         print('no files to run pmd check')
         return -1
-    output_file = path.join(output_path, 'JavaPMD_result.xml')
+    output_file = path.join(output_path, 'JavaPMD_Result.xml')
     program = 'pmd.bat' if is_windows() else 'run.sh'
 
     if enable_exclude:
@@ -214,8 +214,8 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
     if len(changed_java_files) == 0:
         print('no files to run simian check')
         return -1
-    shutil.copyfile(path.join(tool_set_path, 'simian-2.3.33', 'simian.xsl'), path.join(output_path, 'simian.xsl'))
-    output_file = path.join(output_path, "simian_result.xml")
+    # shutil.copyfile(path.join(tool_set_path, 'simian-2.3.33', 'simian.xsl'), path.join(output_path, 'simian.xsl'))
+    output_file = path.join(output_path, 'Simian_Result.xml')
     cmd = [
         'java',
         '-jar',
@@ -249,7 +249,7 @@ def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False,
     if len(changed_java_files) == 0:
         print('no files to run javancss check')
         return -1
-    output_file = path.join(output_path, 'lizard_result.html')
+    output_file = path.join(output_path, 'Lizard_Result.xml')
     cmd = [
         'python',
         '-m',
@@ -275,6 +275,50 @@ def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False,
     return run(cmd)
 
 
+def convert_lizard_xml_to_html(tool_set_path, output_path):
+    """
+    将lizard xml格式的结果转换成html
+    :param tool_set_path: 工具集的根目录
+    :param output_path: 结果输出目录
+    :return:
+    """
+    xml_path = path.join(output_path, 'Lizard_Result.xml')
+    xsl_path = path.join(tool_set_path, 'Lizard-Java', 'xslt', 'ZCIP_Lizard2methodhtml.xsl')
+    html_path = path.join(output_path, 'Lizard_Result.html')
+    convert_xml_to_html(xml_path, html_path, xsl_path)
+    os.remove(xml_path)
+
+
+def convert_simian_xml_to_html(tool_set_path, output_path):
+    """
+    将simian检查结果文件转换为html格式
+    :param tool_set_path: 工具集的根目录
+    :param output_path: 结果输出目录
+    :return:
+    """
+    xml_path = path.join(output_path, 'Simian_Result.xml')
+    xsl_path = path.join(tool_set_path, 'simian-2.3.33', 'simian.xsl')
+    html_path = path.join(output_path, 'Simian_Result.html')
+    convert_xml_to_html(xml_path, html_path, xsl_path)
+    os.remove(xml_path)
+
+
+def convert_xml_to_html(xml_path, html_path, xsl_path):
+    """
+    将lizard xml格式的结果转换成html
+    :param xml_path: xml格式文件的路径
+    :param html_path: html格式文件的路径
+    :param xml_path: xsl文件路径
+    :return:
+    """
+    xml_tree = etree.parse(xml_path)
+    xsl_tree = etree.parse(xsl_path)
+    transform = etree.XSLT(xsl_tree)
+    html_tree = transform(xml_tree)
+    with open(html_path, 'w') as fp:
+        fp.write(str(html_tree))
+
+
 def run_eslint_check(tool_set_path, output_path, changed_js_files):
     """
     执行eslint检查
@@ -286,7 +330,7 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     if len(changed_js_files) == 0:
         print('no files to run eslint check')
         return -1
-    output_file = path.join(output_path, "eslint_result.xml")
+    output_file = path.join(output_path, "Eslint_Result.xml")
     cmd = [
         'node',
         '--max-old-space-size=1000',
@@ -338,7 +382,7 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
         print('no files to run spotbugs check')
         return -1
 
-    output_file = path.join(output_path, "spotbugs_result.html")
+    output_file = path.join(output_path, 'NewFindBugs_Result.html')
     classes_names = [get_package_name(x) for x in left_java_files]
     cmd = [
         'java',
@@ -348,6 +392,8 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
         '-quiet',
         '-onlyAnalyze',
         ','.join(classes_names),
+        '-exclude',
+        path.join(tool_path, 'findbugs-3.0.1', 'zcip', 'findbugs_filter.xml'),
         f'-html={output_file}',
         project_path
     ]
@@ -528,6 +574,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     print('execute simian check')
     code = run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                             exclude_files_path=exclude_files_path)
+    convert_simian_xml_to_html(tool_set_path, full_output_path)
     print(f'simian checked finished:{code}')
     print('execute pmd check')
     code = run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
@@ -545,6 +592,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     print('execute javancss check')
     code = run_javancss_check(full_output_path, changed_java_files, enable_exclude=enable_exclude,
                               exclude_files_path=exclude_files_path)
+    convert_lizard_xml_to_html(tool_set_path, full_output_path)
     print(f'javancss check finished:{code}')
     print('all check finished')
 
