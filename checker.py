@@ -5,11 +5,44 @@ import socket
 import fnmatch
 import re
 import os
+import time
 from os import path
 
 import git
 import psutil
 from lxml import etree
+
+
+def timer(func):
+    """
+    计算执行时间
+    :param func: 装饰的方法
+    :return:
+    """
+    def decorated(*args, **kwargs):
+        st = time.perf_counter()
+        ret = func(*args, **kwargs)
+        et = time.perf_counter()
+        print(f'Cost time:{et - st:0.4f} seconds')
+        return ret
+
+    return decorated
+
+
+def print_log(checker_name):
+    """
+    日志打印装饰器
+    :param checker_name: 执行检查的插件名称
+    :return:
+    """
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            print(f'begin to execute {checker_name} checker')
+            ret = func(*args, **kwargs)
+            print(f'{checker_name} check finished:{ret}')
+            return ret
+        return wrapper
+    return decorator
 
 
 def port_is_valid(web_port):
@@ -119,6 +152,8 @@ def run_and_redirect(cmd, output_file):
     return return_code
 
 
+@timer
+@print_log('checkstyle')
 def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
                          enable_exclude=False, exclude_files_path=None):
     """
@@ -160,6 +195,8 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
     return run(cmd)
 
 
+@timer
+@print_log('pmd')
 def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
     """
     执行pmd检测
@@ -201,6 +238,8 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
     return run(cmd)
 
 
+@timer
+@print_log('simian')
 def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
     """
     执行重复代码检测，阈值为20行
@@ -234,12 +273,19 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
         return -1
 
     cmd.extend(left_java_files)
-    return run(cmd)
+    ret = run(cmd)
+    convert_simian_xml_to_html(tool_set_path, output_path)
+    return ret
 
 
-def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False, exclude_files_path=None):
+@timer
+@print_log('javancss')
+def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
+                       enable_exclude=False,
+                       exclude_files_path=None):
     """
     执行圈复杂度检测，检测阈值为10
+    :param tool_set_path: 检查工具集路径
     :param output_path: 检插结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
     :param enable_exclude: 是否开启例外文件配置
@@ -272,7 +318,9 @@ def run_javancss_check(output_path, changed_java_files, *, enable_exclude=False,
         return -1
 
     cmd.extend(left_java_files)
-    return run(cmd)
+    ret = run(cmd)
+    convert_lizard_xml_to_html(tool_set_path, output_path)
+    return ret
 
 
 def convert_lizard_xml_to_html(tool_set_path, output_path):
@@ -308,7 +356,7 @@ def convert_xml_to_html(xml_path, html_path, xsl_path):
     将lizard xml格式的结果转换成html
     :param xml_path: xml格式文件的路径
     :param html_path: html格式文件的路径
-    :param xml_path: xsl文件路径
+    :param xsl_path: xsl文件路径
     :return:
     """
     xml_tree = etree.parse(xml_path)
@@ -319,6 +367,8 @@ def convert_xml_to_html(xml_path, html_path, xsl_path):
         fp.write(str(html_tree))
 
 
+@timer
+@print_log("eslint")
 def run_eslint_check(tool_set_path, output_path, changed_js_files):
     """
     执行eslint检查
@@ -340,7 +390,9 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     ]
     cmd.extend(changed_js_files)
     cmd.extend(['-noCreateFileLog', '-f', 'xml'])
-    return run_and_redirect(cmd, output_file)
+    ret = run_and_redirect(cmd, output_file)
+    delete_eslint_temp_files(output_path)
+    return ret
 
 
 def get_package_name(java_file):
@@ -356,6 +408,8 @@ def get_package_name(java_file):
         return java_file.partition('src.test.java.')[-1].partition('.java')[0]
 
 
+@timer
+@print_log('spotbugs')
 def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files, *,
                        enable_exclude=False,  exclude_files_path=None):
     """
@@ -530,6 +584,7 @@ def get_changed_files(repo, disable_test=False):
     return get_files_list(git_address, changed_files, disable_test)
 
 
+@print_log('all')
 def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_exclude, exclude_files_path=None,
           mode='1',
           disable_test=False):
@@ -567,34 +622,27 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     if not exclude_files_path:
         exclude_files_path = path.join(git_address, 'CI_Config')
 
-    print('begin to execute checkstyle check')
-    code = run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
-                                exclude_files_path=exclude_files_path)
-    print(f'checkstyle check finished:{code}')
-    print('execute simian check')
-    code = run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
-                            exclude_files_path=exclude_files_path)
-    convert_simian_xml_to_html(tool_set_path, full_output_path)
-    print(f'simian checked finished:{code}')
-    print('execute pmd check')
-    code = run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files,
+                         enable_exclude=enable_exclude,
                          exclude_files_path=exclude_files_path)
-    print(f'pmd check finished:{code}')
-    print('execute eslint check')
-    code = run_eslint_check(tool_set_path, full_output_path, changed_js_files)
-    delete_eslint_temp_files(full_output_path)
-    print(f'eslint check finished:{code}')
-    print('execute spotbugs check')
-    code = run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
-                              enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
 
-    print(f'spotbugs check finished:{code}')
-    print('execute javancss check')
-    code = run_javancss_check(full_output_path, changed_java_files, enable_exclude=enable_exclude,
-                              exclude_files_path=exclude_files_path)
-    convert_lizard_xml_to_html(tool_set_path, full_output_path)
-    print(f'javancss check finished:{code}')
-    print('all check finished')
+    run_simian_check(tool_set_path, full_output_path, changed_java_files,
+                     enable_exclude=enable_exclude,
+                     exclude_files_path=exclude_files_path)
+
+    run_pmd_check(tool_set_path, full_output_path, changed_java_files,
+                  enable_exclude=enable_exclude,
+                  exclude_files_path=exclude_files_path)
+
+    run_eslint_check(tool_set_path, full_output_path, changed_js_files)
+
+    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
+                       enable_exclude=enable_exclude,
+                       exclude_files_path=exclude_files_path)
+
+    run_javancss_check(tool_set_path, full_output_path, changed_java_files,
+                       enable_exclude=enable_exclude,
+                       exclude_files_path=exclude_files_path)
 
     try:
         if enable_web:
