@@ -7,7 +7,6 @@ import re
 import os
 import time
 from os import path
-
 import git
 import psutil
 from lxml import etree
@@ -152,6 +151,24 @@ def run_and_redirect(cmd, output_file):
     return return_code
 
 
+def create_temp_checkstyle_base_file(checkstyle_base_file_path, tool_set_path, full_output_path):
+    """
+    修改checkstyle_base配置文件，调整其中suppressions.xml文件的路径
+    :param checkstyle_base_file_path:  checkstyle-base文件的路径
+    :param tool_set_path:  工具集的根目录
+    :param full_output_path: 生成新的checkstyle-base文件的路径
+    :return:
+    """
+    with open(checkstyle_base_file_path, 'r') as fp:
+        lines = fp.readlines()
+    new_lines = [line.replace('{tool_set_path}', tool_set_path) for line in lines]
+    result_file = path.join(full_output_path, 'checkstyle8.3-base.xml')
+    with open(result_file, 'w') as fp:
+        fp.writelines(new_lines)
+
+    return result_file
+
+
 @timer
 @print_log('checkstyle')
 def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
@@ -168,6 +185,9 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
     if len(changed_java_files) == 0:
         print('no files to run checkstyle check')
         return -1
+    checkstyle_base_file_path = path.join(tool_set_path, 'checkstyle-8.3', 'ruleFile', 'checkstyle8.3-base.xml')
+    temp_checkstyle_base_file_path = create_temp_checkstyle_base_file(checkstyle_base_file_path, tool_set_path,
+                                                                      output_path)
     output_file = path.join(output_path, 'Checkstyle_Result.xml')
     cmd = [
         'java',
@@ -175,7 +195,7 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
         '-jar',
         path.join(tool_set_path, 'checkstyle-8.3', 'checkstyle-8.3-all.jar'),
         '-c',
-        path.join(tool_set_path, 'checkstyle-8.3', 'ruleFile', 'checkstyle8.3-base.xml'),
+        temp_checkstyle_base_file_path,
         '-f',
         'xml',
         '-o',
@@ -192,7 +212,9 @@ def run_checkstyle_check(tool_set_path, output_path, changed_java_files, *,
         return -1
 
     cmd.extend(left_java_files)
-    return run(cmd)
+    ret = run(cmd)
+    os.remove(temp_checkstyle_base_file_path)
+    return ret
 
 
 @timer
@@ -440,6 +462,7 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     classes_names = [get_package_name(x) for x in left_java_files]
     cmd = [
         'java',
+        "-Xmx4096m",
         '-jar',
         path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
         '-textui',
