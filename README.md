@@ -19,11 +19,11 @@
 ### 依赖
 
 1. 环境变量中配置`java`、`node`、`python`变量。其中，`python`要求版本`python3`，不可使用`python2`版本。
-2. 使用`pip`安装`lizard`、`gitpython`、`jinja2`、`psutil`、`lxml`。
+2. 使用`pip`执行安装`pip install requirements.txt`。
 3. 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
 
 ```shell
-pip install lxml -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
 ```
 
 ### 命令行调用

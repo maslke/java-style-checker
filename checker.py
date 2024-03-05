@@ -307,6 +307,7 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
                        exclude_files_path=None):
     """
     执行圈复杂度检测，检测阈值为10
+    使用检测工具中自带的lizard.py文件执行检查，不强制要求执行环境中安装lizard模块
     :param tool_set_path: 检查工具集路径
     :param output_path: 检插结果文件输出路径
     :param changed_java_files: 执行检查的java源代码文件
@@ -320,8 +321,7 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
     output_file = path.join(output_path, 'Lizard_Result.xml')
     cmd = [
         'python',
-        '-m',
-        'lizard',
+        path.join(tool_set_path, 'Lizard-Java', 'lizard-master', 'lizard.py'),
         '-l',
         'java',
         '-C',
@@ -467,12 +467,15 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
         path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
         '-textui',
         '-quiet',
+        '-low',
+        '-omitVisitors',
+        'FindReturnRef',
         '-onlyAnalyze',
         ','.join(classes_names),
         '-exclude',
         path.join(tool_path, 'findbugs-3.0.1', 'zcip', 'findbugs_filter.xml'),
         f'-html={output_file}',
-        project_path
+        f'{project_path}/**/*.class'
     ]
     return run(cmd)
 
