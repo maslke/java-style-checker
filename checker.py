@@ -456,6 +456,7 @@ def save_analysis_class_files(full_name, class_files):
         for file in class_files:
             fp.write(file + '\n')
 
+
 @timer
 @print_log('spotbugs')
 def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files, *,
@@ -656,11 +657,22 @@ def get_changed_files(repo, disable_test=False):
     return get_files_list(git_address, changed_files, disable_test)
 
 
+def need_check(plugin, plugins):
+    """
+    判断是否需要执行检查
+    :param plugin: 当前插件名称
+    :param plugins: 所有的插件名称
+    :return:
+    """
+    return plugin in plugins
+
+
 @print_log('all')
 def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_exclude, exclude_files_path=None,
           mode='1',
           exclude_test=False,
-          file=None):
+          files=None,
+          plugins=''):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -672,7 +684,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param exclude_files_path: 例外文件路径
     :param mode: 检查模式
     :param exclude_test: 不对测试代码执行检查
-    :param file: 执行检查分析的文件
+    :param files: 执行检查分析的文件
+    :param plugins: 需要执行的插件列表
     :return:
     """
     if not path.exists(project_path):
@@ -683,8 +696,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         return
     repo = get_repo(project_path)
     git_address = repo.working_tree_dir
-    if file is not None:
-        changed_java_files, changed_js_files = get_given_files(file, exclude_test)
+    if files is not None:
+        changed_java_files, changed_js_files = get_given_files(files, exclude_test)
     else:
         changed_java_files, changed_js_files = get_last_committed_files(repo, exclude_test) \
             if mode == '1' else get_changed_files(repo, exclude_test)
@@ -699,27 +712,26 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     if not exclude_files_path:
         exclude_files_path = path.join(git_address, 'CI_Config')
 
-    run_checkstyle_check(tool_set_path, full_output_path, changed_java_files,
-                         enable_exclude=enable_exclude,
+    if need_check('checkstyle', plugins):
+        run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                             exclude_files_path=exclude_files_path)
+
+    if need_check('simian', plugins):
+        run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                          exclude_files_path=exclude_files_path)
+    if need_check('pmd', plugins):
+        run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
+                      exclude_files_path=exclude_files_path)
 
-    run_simian_check(tool_set_path, full_output_path, changed_java_files,
-                     enable_exclude=enable_exclude,
-                     exclude_files_path=exclude_files_path)
+    if need_check('eslint', plugins):
+        run_eslint_check(tool_set_path, full_output_path, changed_js_files)
 
-    run_pmd_check(tool_set_path, full_output_path, changed_java_files,
-                  enable_exclude=enable_exclude,
-                  exclude_files_path=exclude_files_path)
-
-    run_eslint_check(tool_set_path, full_output_path, changed_js_files)
-
-    run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
-                       enable_exclude=enable_exclude,
-                       exclude_files_path=exclude_files_path)
-
-    run_javancss_check(tool_set_path, full_output_path, changed_java_files,
-                       enable_exclude=enable_exclude,
-                       exclude_files_path=exclude_files_path)
+    if need_check('spotbugs', plugins):
+        run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
+                           enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
+    if need_check('javancss', plugins):
+        run_javancss_check(tool_set_path, full_output_path, changed_java_files,
+                           enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
 
     try:
         if enable_web:
@@ -743,7 +755,11 @@ def main():
     parser.add_argument('--mode', '-m', required=False, type=str, default='1',
                         help='1 for check after committed, 2 for check before committed')
     parser.add_argument('--exclude-test', action='store_true', required=False, help='check test code or not')
-    parser.add_argument('--file', '-f', required=False, help='path of analysis file')
+    parser.add_argument('--files', '-f', required=False, help='path of analysis file')
+    parser.add_argument('--plugins', required=False,
+                        default='checkstyle,pmd,spotbugs,javancss,simian,eslint',
+                        help='list of check types that will be executed')
+
     args = parser.parse_args()
     tool = args.tool
     project = args.project
@@ -754,7 +770,8 @@ def main():
     exclude_files_path = args.exclude_files_path
     mode = args.mode
     exclude_test = args.exclude_test
-    file = args.file
+    files = args.files
+    plugins = args.plugins
     check(project, tool, output,
           enable_web=enable_web,
           port=port,
@@ -762,7 +779,8 @@ def main():
           exclude_files_path=exclude_files_path,
           mode=mode,
           exclude_test=exclude_test,
-          file=file)
+          files=files,
+          plugins=plugins)
 
 
 if __name__ == '__main__':
