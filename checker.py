@@ -611,6 +611,24 @@ def get_files_list(git_address, changed_files, disable_test=False):
     return changed_java_files, changed_js_files
 
 
+def get_given_files(file, disable_test=False):
+    """
+    从给定的分析文件字符串中，提取出java文件列表和js文件列表
+    :param file:   分析文件字符串，多个文件使用','分割
+    :param disable_test: 是否排除掉测试文件
+    :return:
+    """
+    changed_files = file.split(',')
+    changed_java_files = list()
+    changed_js_files = list()
+    for a_path in changed_files:
+        if a_path.endswith('.java') and (not disable_test or 'src/test/' not in a_path):
+            changed_java_files.append(a_path)
+        elif a_path.endswith('.js'):
+            changed_js_files.append(a_path)
+    return changed_java_files, changed_js_files
+
+
 def get_last_committed_files(repo, disable_test=False):
     """
     从repo中根据commit，获取变动的文件列表
@@ -641,7 +659,8 @@ def get_changed_files(repo, disable_test=False):
 @print_log('all')
 def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_exclude, exclude_files_path=None,
           mode='1',
-          disable_test=False):
+          exclude_test=False,
+          file=None):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -652,7 +671,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param enable_exclude: 是否开启例外文件过滤
     :param exclude_files_path: 例外文件路径
     :param mode: 检查模式
-    :param disable_test: 不对测试代码执行检查
+    :param exclude_test: 不对测试代码执行检查
+    :param file: 执行检查分析的文件
     :return:
     """
     if not path.exists(project_path):
@@ -663,8 +683,11 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         return
     repo = get_repo(project_path)
     git_address = repo.working_tree_dir
-    changed_java_files, changed_js_files = get_last_committed_files(repo, disable_test)\
-        if mode == '1' else get_changed_files(repo, disable_test)
+    if file is not None:
+        changed_java_files, changed_js_files = get_given_files(file, exclude_test)
+    else:
+        changed_java_files, changed_js_files = get_last_committed_files(repo, exclude_test) \
+            if mode == '1' else get_changed_files(repo, exclude_test)
 
     full_output_path = output_path if output_path else os.path.join(project_path, 'check_result')
     if not path.exists(full_output_path):
@@ -719,7 +742,8 @@ def main():
     parser.add_argument('--exclude-files-path', required=False, help='path of exclude files')
     parser.add_argument('--mode', '-m', required=False, type=str, default='1',
                         help='1 for check after committed, 2 for check before committed')
-    parser.add_argument('--disable-test', action='store_true', required=False, help='check test code or not')
+    parser.add_argument('--exclude-test', action='store_true', required=False, help='check test code or not')
+    parser.add_argument('--file', '-f', required=False, help='path of analysis file')
     args = parser.parse_args()
     tool = args.tool
     project = args.project
@@ -729,14 +753,16 @@ def main():
     enable_exclude = args.enable_exclude
     exclude_files_path = args.exclude_files_path
     mode = args.mode
-    disable_test = args.disable_test
+    exclude_test = args.exclude_test
+    file = args.file
     check(project, tool, output,
           enable_web=enable_web,
           port=port,
           enable_exclude=enable_exclude,
           exclude_files_path=exclude_files_path,
           mode=mode,
-          disable_test=disable_test)
+          exclude_test=exclude_test,
+          file=file)
 
 
 if __name__ == '__main__':

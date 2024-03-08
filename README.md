@@ -19,11 +19,11 @@
 ### 依赖
 
 1. 环境变量中配置`java`、`node`、`python`变量。其中，`python`要求版本`python3`，不可使用`python2`版本。
-2. 使用`pip`执行安装`pip install requirements.txt`。
+2. 使用`pip`执行安装`pip install -r requirements.txt`。
 3. 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
 
 ```shell
-pip install requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
+pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
 ```
 
 ### 命令行调用
@@ -45,7 +45,8 @@ python3 checker.py -h
 | --port               | web server使用的端口号        | `False` | `12345`                                   |
 | --enable-exclude     | 是否开启例外文件配置              | `False` | `False`                                   |
 | --exclude-files-path | 例外文件路径                  | `False` | 按照git仓库根目录/CI_Config、工程根目录/CI_Config的顺序查找 |
-| ---mode              | 检查模式                    | `False` | '1'                                       |
+| ---mode              | 检查模式                    | `False` | `1`                                       |
+| ---exclude-test      | 是否排除测试代码                | `False` | `False`                                   |
 
 
 #### 脚本调用示例
