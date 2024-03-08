@@ -417,6 +417,21 @@ def run_eslint_check(tool_set_path, output_path, changed_js_files):
     return ret
 
 
+def get_class_name(java_file):
+    """
+    从java文件名中获取对应的class文件名
+    :param java_file: java 文件全路径
+    :return:
+    """
+    if 'src/main/java' in java_file:
+        class_file = java_file.replace('src/main/java', path.join('target', 'classes'))
+    elif 'src/test/java' in java_file:
+        class_file = java_file.replace('src/test/java', path.join('target', 'test-classes'))
+    else:
+        return ''
+    return class_file.replace('/', os.sep).replace('.java', '.class')
+
+
 def get_package_name(java_file):
     """
     获取java源代码文件的package名称
@@ -429,6 +444,17 @@ def get_package_name(java_file):
     elif 'src.test.java' in java_file:
         return java_file.partition('src.test.java.')[-1].partition('.java')[0]
 
+
+def save_analysis_class_files(full_name, class_files):
+    """
+    将要执行spotbugs分析的class文件的路径写入到文件中
+    :param full_name: 写入文件的路径
+    :param class_files: 要执行分析的class文件
+    :return:
+    """
+    with open(full_name, 'w', encoding='utf-8') as fp:
+        for file in class_files:
+            fp.write(file + '\n')
 
 @timer
 @print_log('spotbugs')
@@ -457,9 +483,10 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     if len(left_java_files) == 0:
         print('no files to run spotbugs check')
         return -1
-
+    class_files = [path.join(project_path, get_class_name(java_file)) for java_file in left_java_files]
+    class_files_path = path.join(output_path, 'spotbugs_analysis.ini')
+    save_analysis_class_files(class_files_path, class_files)
     output_file = path.join(output_path, 'NewFindBugs_Result.html')
-    classes_names = [get_package_name(x) for x in left_java_files]
     cmd = [
         'java',
         "-Xmx4096m",
@@ -467,17 +494,18 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
         path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
         '-textui',
         '-quiet',
-        '-low',
+        '-medium',
         '-omitVisitors',
         'FindReturnRef',
-        '-onlyAnalyze',
-        ','.join(classes_names),
         '-exclude',
         path.join(tool_path, 'findbugs-3.0.1', 'zcip', 'findbugs_filter.xml'),
         f'-html={output_file}',
-        f'{project_path}/**/*.class'
+        '-analyzeFromFile',
+        class_files_path
     ]
-    return run(cmd)
+    ret = run(cmd)
+    os.remove(class_files_path)
+    return ret
 
 
 def start_web_page(output_folder, web_port):
