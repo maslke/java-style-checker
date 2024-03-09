@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['checker.py'],
-    pathex=['/Users/maslke/PycharmProjects/java-style-checker/.venv/lib/python3.10/site-packages'],
+    pathex=['./.venv/lib/python3.10/site-packages'],
     binaries=[],
     datas=[('./tool_set', 'tool_set')],
     hiddenimports=[],

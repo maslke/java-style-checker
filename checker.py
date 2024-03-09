@@ -423,13 +423,19 @@ def get_class_name(java_file):
     :param java_file: java 文件全路径
     :return:
     """
-    if 'src/main/java' in java_file:
-        class_file = java_file.replace('src/main/java', path.join('target', 'classes'))
-    elif 'src/test/java' in java_file:
-        class_file = java_file.replace('src/test/java', path.join('target', 'test-classes'))
-    else:
-        return ''
-    return class_file.replace('/', os.sep).replace('.java', '.class')
+    patterns = [(path.join('target', 'classes'), path.join('target', 'test-classes')),
+                (path.join('build', 'classes', 'java', 'main'), path.join('build', 'classes', 'java', 'test')),
+                (path.join('build', 'classes'), path.join('build', 'test-classes'))]
+    for pattern in patterns:
+        if 'src/main/java' in java_file:
+            class_file = java_file.replace('src/main/java', pattern[0])
+        elif 'src/test/java' in java_file:
+            class_file = java_file.replace('src/test/java', pattern[1])
+        else:
+            return ''
+        class_file = class_file.replace('/', os.sep).replace('.java', '.class')
+        if path.exists(class_file):
+            return class_file
 
 
 def get_package_name(java_file):
@@ -490,7 +496,6 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     output_file = path.join(output_path, 'NewFindBugs_Result.html')
     cmd = [
         'java',
-        "-Xmx4096m",
         '-jar',
         path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
         '-textui',

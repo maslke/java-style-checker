@@ -3,7 +3,7 @@
 
 a = Analysis(
     ['checker.py'],
-    pathex=['C:\\Python310\\Lib\\site-packages'],
+    pathex=['.\venv\Lib\site-packages'],
     binaries=[],
     datas=[('./tool_set', 'tool_set')],
     hiddenimports=[],
