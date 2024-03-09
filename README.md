@@ -8,25 +8,26 @@
 
 检查所使用的工具，基于公司ci流程中的代码规范检查工具集。
 
-工具提供了两种检测模式：
+工具提供了多种检测模式：
 1. `mode=1`，对仓库中最后一次commit的文件进行检测。
 2. `mode=2`，对仓库中变动了的文件进行检测，包括已经在git仓库中的文件，以及新添加的文件。
+3. `--files`, 可设置以逗号分割的文件名称列表，对以上文件执行检查。
 
-配置idea/webstorm提供的外部工具和git可视化工具，可实现代码规范检查工具的自动调用。
+配置idea/webstorm提供的外部工具和git可视化工具，可实现代码规范检查工具的一键式调用和自动调用。
 
-## 使用说明
+## 开发说明
 
 ### 依赖
 
 1. 环境变量中配置`java`、`node`、`python`变量。其中，`python`要求版本`python3`，不可使用`python2`版本。
-2. 使用`pip`执行安装`pip install -r requirements.txt`。
-3. 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
+2. 使用`pip`执行安装`pip install -r requirements.txt`。 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
 
 ```shell
 pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple/
 ```
+## 说用说明
 
-### 命令行调用
+### 命令行脚本调用
 
 #### 查看帮助
 
@@ -45,8 +46,10 @@ python3 checker.py -h
 | --port               | web server使用的端口号        | `False` | `12345`                                   |
 | --enable-exclude     | 是否开启例外文件配置              | `False` | `False`                                   |
 | --exclude-files-path | 例外文件路径                  | `False` | 按照git仓库根目录/CI_Config、工程根目录/CI_Config的顺序查找 |
-| ---mode              | 检查模式                    | `False` | `1`                                       |
-| ---exclude-test      | 是否排除测试代码                | `False` | `False`                                   |
+| --mode               | 检查模式                    | `False` | `1`                                       |
+| --exclude-test       | 是否排除测试代码                | `False` | `False`                                   |
+| --files              | 需要执行检查的文件名称列表，使用逗号分隔    | `False` | ``                                        |
+| --plugins            | 需要执行的检查类型               | `False` | 默认情况下，是执行全部的检查                            |
 
 
 #### 脚本调用示例
@@ -83,6 +86,21 @@ python /path/to/checker.py -p /path/to/project --enable-web --port 12345
 python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-files-path /path/to/CI_Config
 
 ```
+
+-- 设置执行检查的时候，忽略测试代码
+```shell
+python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-test
+```
+
+-- 设置执行检查的时候，启用的检查类型
+```shell
+python /path/to/checker.py -p /path/to/project --enable-exclude --plugins pmd,checkstyle,simian
+```
+
+-- 设置执行检查的文件列表
+```shell
+python /path/to/checker.py -p /path/to/project --files file1,file2,file3
+```
 ### idea/webstorm中配置外部工具
 
 配置外部工具的入口在`Settings`-`Tools`-`External Tools`。
@@ -94,6 +112,7 @@ python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-files-
 3. Arguments：`/path/to/checker.py -p $ProjectFileDir$ --enable-web --enable-exclude`
 4. Working directory：`$ProjectFileDir$`或是`$ProjectFileDir$/temp_folder`。`temp_folder`可自行定义。配置工程下的子文件夹，可避免检测过程中生成的一些临时文件生成在工程根目录下导致的杂乱问题。
 
+
 ### commit之后自动执行工具
 
 在配置了外部工具之后，配置idea/webstorm中提供的可视化git工具，可在代码commit之后，自动执行本工具。
@@ -104,3 +123,14 @@ python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-files-
 3. 在`Run Tool`中，选择上面配置的外部工具。
 
 这样，在每次commit代码之后，代码检测工具将会自动执行。需要注意的是，注意在配置的外部工具中，设置代码检查工具以`mode=1`的方式进行运行，以免找不到正确的检测文件。
+
+### 二进制工具调用
+
+除可执行脚本调用之外，还可以使用打包好的二进制可执行文件完成以上功能。
+
+相较于脚本调用的方式，使用二进制文件的方式无需安装python环境和安装依赖。但同样要求配置`java`和`node`环境变量。
+
+二进制工具，支持的参数列表，和脚本工具一支。
+
+二进制工具，支持`Windows`、`MacOS`和`Linux`平台。
+

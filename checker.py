@@ -677,7 +677,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
           mode='1',
           exclude_test=False,
           files=None,
-          plugins=''):
+          plugins='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs'):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -728,10 +728,10 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                       exclude_files_path=exclude_files_path)
 
-    if need_check('eslint', plugins):
+    if need_check('eslint', plugins) or need_check('eslint5', plugins):
         run_eslint_check(tool_set_path, full_output_path, changed_js_files)
 
-    if need_check('spotbugs', plugins):
+    if need_check('spotbugs', plugins) or need_check('findbugs', plugins):
         run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
                            enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
     if need_check('javancss', plugins):
@@ -762,7 +762,7 @@ def main():
     parser.add_argument('--exclude-test', action='store_true', required=False, help='check test code or not')
     parser.add_argument('--files', '-f', required=False, help='path of analysis file')
     parser.add_argument('--plugins', required=False,
-                        default='checkstyle,pmd,spotbugs,javancss,simian,eslint',
+                        default='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs',
                         help='list of check types that will be executed')
 
     args = parser.parse_args()

@@ -2,3 +2,5 @@
 .idea
 
 tool_set/
+build/
+dist/
