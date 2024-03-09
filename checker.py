@@ -743,6 +743,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
             start_web_page(full_output_path, port)
     except KeyboardInterrupt as e:
         print(e)
+    return 0
 
 
 def main():
