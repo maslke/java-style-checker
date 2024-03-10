@@ -662,7 +662,7 @@ def get_changed_files(repo, disable_test=False):
     return get_files_list(git_address, changed_files, disable_test)
 
 
-def need_check(plugin, plugins):
+def need_run_check(plugin, plugins):
     """
     判断是否需要执行检查
     :param plugin: 当前插件名称
@@ -670,6 +670,28 @@ def need_check(plugin, plugins):
     :return:
     """
     return plugin in plugins
+
+
+def check_java_env_exists():
+    cmd = [
+        'java',
+        '-version'
+    ]
+    try:
+        run(cmd)
+    except FileNotFoundError as e:
+        raise e
+
+
+def check_node_env_exists():
+    cmd = [
+        'node',
+        '-v'
+    ]
+    try:
+        run(cmd)
+    except FileNotFoundError as e:
+        raise e
 
 
 @print_log('all')
@@ -693,12 +715,25 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param plugins: 需要执行的插件列表
     :return:
     """
+
+    try:
+        check_node_env_exists()
+    except FileNotFoundError:
+        print('node env does not exist')
+        return -1
+
+    try:
+        check_java_env_exists()
+    except FileNotFoundError:
+        print('java env does not exist')
+        return -1
+
     if not path.exists(project_path):
         print('project does not exist')
-        return
+        return -1
     if not path.exists(tool_set_path):
         print('tool set does not exist')
-        return
+        return -1
     repo = get_repo(project_path)
     git_address = repo.working_tree_dir
     if files is not None:
@@ -717,24 +752,24 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     if not exclude_files_path:
         exclude_files_path = path.join(git_address, 'CI_Config')
 
-    if need_check('checkstyle', plugins):
+    if need_run_check('checkstyle', plugins):
         run_checkstyle_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                              exclude_files_path=exclude_files_path)
 
-    if need_check('simian', plugins):
+    if need_run_check('simian', plugins):
         run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                          exclude_files_path=exclude_files_path)
-    if need_check('pmd', plugins):
+    if need_run_check('pmd', plugins):
         run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                       exclude_files_path=exclude_files_path)
 
-    if need_check('eslint', plugins) or need_check('eslint5', plugins):
+    if need_run_check('eslint', plugins) or need_run_check('eslint5', plugins):
         run_eslint_check(tool_set_path, full_output_path, changed_js_files)
 
-    if need_check('spotbugs', plugins) or need_check('findbugs', plugins):
+    if need_run_check('spotbugs', plugins) or need_run_check('findbugs', plugins):
         run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
                            enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
-    if need_check('javancss', plugins):
+    if need_run_check('javancss', plugins):
         run_javancss_check(tool_set_path, full_output_path, changed_java_files,
                            enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
 
