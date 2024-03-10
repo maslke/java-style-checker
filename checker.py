@@ -679,7 +679,7 @@ def check_java_env_exists():
     ]
     try:
         run(cmd)
-    except FileNotFoundError as e:
+    except FileNotFoundError | subprocess.CalledProcessError as e:
         raise e
 
 
@@ -690,7 +690,7 @@ def check_node_env_exists():
     ]
     try:
         run(cmd)
-    except FileNotFoundError as e:
+    except FileNotFoundError | subprocess.CalledProcessError as e:
         raise e
 
 
@@ -718,13 +718,13 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     try:
         check_node_env_exists()
-    except FileNotFoundError:
+    except FileNotFoundError | subprocess.CalledProcessError:
         print('node env does not exist')
         return -1
 
     try:
         check_java_env_exists()
-    except FileNotFoundError:
+    except FileNotFoundError | subprocess.CalledProcessError:
         print('java env does not exist')
         return -1
 
