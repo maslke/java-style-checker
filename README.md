@@ -50,29 +50,40 @@ python3 checker.py -h
 | --exclude-test       | 是否排除测试代码                | `False` | `False`                                   |
 | --files              | 需要执行检查的文件名称列表，使用逗号分隔    | `False` | ``                                        |
 | --plugins            | 需要执行的检查类型               | `False` | 默认情况下，是执行全部的检查                            |
+| --auto-open          | 是否自动打开浏览器查看检查结果         | `False` | `False`                                   |
 
 
 #### 脚本调用示例
 
 - 最小化调用
+
 ```shell
 python /path/to/checker.py -p /path/to/project
 ```
 
 - 在仓库中执行commit之后调用
+
 ```shell
 python /path/to/checker.py -p /path/to/project -mode 1
 python /path/to/checker.py -p /path/to/project
 ```
 
 - 代码改动后未执行commit调用
+
 ```shell
 python /path/to/checker.py -p /path/to/project -mode 2
 ```
 
 - 自定义检查结果输出目录
+
 ```shell
 python /path/to/checker.py -p /path/to/project -o /path/to/check_result_folder
+```
+
+- 设置检查使用的工具集
+
+```shell
+python /path/to/checker.py -p /path/to/project -t /path/to/tool_set
 ```
 
 - 检查结果开启 web server 查看检测结果
@@ -82,25 +93,31 @@ python /path/to/checker.py -p /path/to/project --enable-web --port 12345
 ```
 
 - 开启例外文件配置并自定义例外文件路径
+
 ```shell
 python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-files-path /path/to/CI_Config
 
 ```
 
 -- 设置执行检查的时候，忽略测试代码
+
 ```shell
 python /path/to/checker.py -p /path/to/project --enable-exclude --exclude-test
 ```
 
 -- 设置执行检查的时候，启用的检查类型
+
 ```shell
 python /path/to/checker.py -p /path/to/project --enable-exclude --plugins pmd,checkstyle,simian
 ```
 
 -- 设置执行检查的文件列表
+
 ```shell
 python /path/to/checker.py -p /path/to/project --files file1,file2,file3
 ```
+
+
 ### idea/webstorm中配置外部工具
 
 配置外部工具的入口在`Settings`-`Tools`-`External Tools`。
@@ -133,4 +150,3 @@ python /path/to/checker.py -p /path/to/project --files file1,file2,file3
 打包好的工具，支持的参数列表，和脚本工具一支。
 
 打包好的工具，支持`Windows`、`MacOS`和`Linux`平台。
-

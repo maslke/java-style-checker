@@ -6,10 +6,30 @@ import fnmatch
 import re
 import os
 import time
+from http.server import HTTPServer
+import webbrowser
+
+
 from os import path
 import git
 import psutil
 from lxml import etree
+
+from handler.RequestHandler import RequestHandler
+
+
+def run_server(server_class=HTTPServer, handler_class=RequestHandler, port=8000, base_dir='.'):
+    server_address = ('', port)
+    handler_class.base_dir = base_dir
+
+    class MyRequestHandler(RequestHandler):
+
+        def __init__(self, *args, **kwargs):
+            self.directory = base_dir
+            super().__init__(*args, directory=base_dir, **kwargs)
+    httpd = server_class(server_address, MyRequestHandler)
+    print(f'Starting server on port {port}, serving directory {handler_class.base_dir}...')
+    httpd.serve_forever()
 
 
 def timer(func):
@@ -514,24 +534,20 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     return ret
 
 
-def start_web_page(output_folder, web_port):
+def start_web_page(output_folder, web_port, auto_open):
     """
     开启web server
     :param output_folder: 目录
     :param web_port: web server 端口
+    :param auto_open: 是否自动打开浏览器
     :return:
     """
     print(f'visit http://localhost:{web_port}')
     kill_process_using_port_psutil(web_port)
-    cmd = [
-        'python',
-        '-m',
-        'http.server',
-        '-d',
-        output_folder,
-        str(web_port)
-    ]
-    return run(cmd)
+    if auto_open:
+        webbrowser.open_new_tab(f'http://localhost:{web_port}')
+    run_server(port=web_port, base_dir=output_folder)
+    return 0
 
 
 def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
@@ -699,7 +715,8 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
           mode='1',
           exclude_test=False,
           files=None,
-          plugins='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs'):
+          plugins='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs',
+          auto_open=False):
     """
     执行代码规范检查
     :param project_path: 工程文件路径
@@ -713,6 +730,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param exclude_test: 不对测试代码执行检查
     :param files: 执行检查分析的文件
     :param plugins: 需要执行的插件列表
+    :param auto_open: 在设置开启web server的前提下，是否自动打开浏览器
     :return:
     """
 
@@ -775,7 +793,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     try:
         if enable_web:
-            start_web_page(full_output_path, port)
+            start_web_page(full_output_path, port, auto_open)
     except KeyboardInterrupt as e:
         print(e)
     return 0
@@ -800,6 +818,7 @@ def main():
     parser.add_argument('--plugins', required=False,
                         default='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs',
                         help='list of check types that will be executed')
+    parser.add_argument('--auto-open', action='store_true', required=False, help='whether to open browser after check')
 
     args = parser.parse_args()
     tool = args.tool
@@ -813,6 +832,7 @@ def main():
     exclude_test = args.exclude_test
     files = args.files
     plugins = args.plugins
+    auto_open = args.auto_open
     check(project, tool, output,
           enable_web=enable_web,
           port=port,
@@ -821,7 +841,8 @@ def main():
           mode=mode,
           exclude_test=exclude_test,
           files=files,
-          plugins=plugins)
+          plugins=plugins,
+          auto_open=auto_open)
 
 
 if __name__ == '__main__':
