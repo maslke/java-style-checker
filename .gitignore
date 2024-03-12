@@ -4,3 +4,5 @@
 tool_set/
 build/
 dist/
+spec/dist/
+spec/build/
