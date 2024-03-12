@@ -456,6 +456,7 @@ def get_class_name(java_file):
         class_file = class_file.replace('/', os.sep).replace('.java', '.class')
         if path.exists(class_file):
             return class_file
+    return ''
 
 
 def get_package_name(java_file):
@@ -510,7 +511,8 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     if len(left_java_files) == 0:
         print('no files to run spotbugs check')
         return -1
-    class_files = [path.join(project_path, get_class_name(java_file)) for java_file in left_java_files]
+    class_names = [get_class_name(java_file) for java_file in left_java_files]
+    class_files = [path.join(project_path, class_name) for class_name in class_names if class_name]
     class_files_path = path.join(output_path, 'spotbugs_analysis.ini')
     save_analysis_class_files(class_files_path, class_files)
     output_file = path.join(output_path, 'NewFindBugs_Result.html')
@@ -688,22 +690,7 @@ def need_run_check(plugin, plugins):
     return plugin in plugins
 
 
-def check_java_env_exists():
-    cmd = [
-        'java',
-        '-version'
-    ]
-    try:
-        run(cmd)
-    except FileNotFoundError | subprocess.CalledProcessError as e:
-        raise e
-
-
-def check_node_env_exists():
-    cmd = [
-        'node',
-        '-v'
-    ]
+def check_app_executable(cmd):
     try:
         run(cmd)
     except FileNotFoundError | subprocess.CalledProcessError as e:
@@ -735,15 +722,21 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     """
 
     try:
-        check_node_env_exists()
+        check_app_executable(['node', '-v'])
     except FileNotFoundError | subprocess.CalledProcessError:
-        print('node env does not exist')
+        print('node is not executable')
         return -1
 
     try:
-        check_java_env_exists()
+        check_app_executable(['java', '-version'])
     except FileNotFoundError | subprocess.CalledProcessError:
-        print('java env does not exist')
+        print('java is not executable')
+        return -1
+
+    try:
+        check_app_executable(['git', '-v'])
+    except FileNotFoundError | subprocess.CalledProcessError:
+        print('git is not executable')
         return -1
 
     if not path.exists(project_path):
