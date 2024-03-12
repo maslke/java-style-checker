@@ -9,6 +9,8 @@ import time
 from http.server import HTTPServer
 import webbrowser
 
+import lizard
+from xml.etree import cElementTree
 
 from os import path
 import git
@@ -27,6 +29,7 @@ def run_server(server_class=HTTPServer, handler_class=RequestHandler, port=8000,
         def __init__(self, *args, **kwargs):
             self.directory = base_dir
             super().__init__(*args, directory=base_dir, **kwargs)
+
     httpd = server_class(server_address, MyRequestHandler)
     print(f'Starting server on port {port}, serving directory {handler_class.base_dir}...')
     httpd.serve_forever()
@@ -38,6 +41,7 @@ def timer(func):
     :param func: 装饰的方法
     :return:
     """
+
     def decorated(*args, **kwargs):
         st = time.perf_counter()
         ret = func(*args, **kwargs)
@@ -54,13 +58,16 @@ def print_log(checker_name):
     :param checker_name: 执行检查的插件名称
     :return:
     """
+
     def decorator(func):
         def wrapper(*args, **kwargs):
             print(f'begin to execute {checker_name} checker')
             ret = func(*args, **kwargs)
             print(f'{checker_name} check finished:{ret}')
             return ret
+
         return wrapper
+
     return decorator
 
 
@@ -320,6 +327,75 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
     return ret
 
 
+def generate_lizard_xml_file(source_files, output_file):
+    """
+    使用lizard.py执行文件分析，生成xml文件
+    :param source_files: 需要执行分析的文件列表
+    :param output_file: 输出文件
+    :return:
+    """
+    results = [lizard.analyze_file(source_file) for source_file in source_files]
+
+    xml = cElementTree.Element("xml")
+    xsl = r'type="text/xsl" href="https://raw.githubusercontent.com/terryyin/lizard/master/lizard.xsl"'
+    pi = cElementTree.ProcessingInstruction("xml-stylesheet", xsl)
+    xml.append(pi)
+
+    root = cElementTree.Element("cppncss")
+
+    xml.append(root)
+
+    measure_function = cElementTree.SubElement(root, "measure", type="Function")
+    labels_function = cElementTree.SubElement(measure_function, "labels")
+    for label in ['Nr.', 'NCSS', 'CCN']:
+        cElementTree.SubElement(labels_function, "label").text = label
+
+    index = 0
+    ncss = 0
+    ccn = 0
+    function_count = 0
+    for result in results:
+
+        for function in result.function_list:
+            name = f'{function.long_name} at {function.filename}:{function.start_line}'
+            item = cElementTree.SubElement(measure_function, "item", name=name)
+            cElementTree.SubElement(item, "value").text = str(index + 1)
+            cElementTree.SubElement(item, "value").text = str(function.nloc)
+            cElementTree.SubElement(item, "value").text = str(function.cyclomatic_complexity)
+            index = index + 1
+            ncss = ncss + function.nloc
+            ccn = ccn + function.cyclomatic_complexity
+        function_count = function_count + len(result.function_list)
+        cElementTree.SubElement(measure_function, 'average', {'label': 'NCSS', 'value': str(ncss / function_count)})
+        cElementTree.SubElement(measure_function, 'average', {'label': 'CCN', 'value': str(ccn / function_count)})
+
+    measure_file = cElementTree.SubElement(root, "measure", type="File")
+    labels_file = cElementTree.SubElement(measure_file, "labels")
+    for label in ['Nr.', 'NCSS', 'CCN', 'Functions']:
+        cElementTree.SubElement(labels_file, "label").text = label
+
+    for idx, result in enumerate(results):
+        item = cElementTree.SubElement(measure_file, "item", name=result.filename)
+        cElementTree.SubElement(item, "value").text = str(idx + 1)
+        cElementTree.SubElement(item, "value").text = str(sum(item.nloc for item in result.function_list))
+        cElementTree.SubElement(item, "value").text = \
+            str(sum(item.cyclomatic_complexity for item in result.function_list))
+        cElementTree.SubElement(item, "value").text = str(len(result.function_list))
+
+    cElementTree.SubElement(measure_file, 'average', {'label': 'NCSS', 'value': str(ncss / len(results))})
+    cElementTree.SubElement(measure_file, 'average', {'label': 'CCN', 'value': str(ccn / len(results))})
+    cElementTree.SubElement(measure_file,
+                            'average', {'label': 'Functions', 'value': str(function_count / len(results))})
+    cElementTree.SubElement(measure_file, 'sum', {'label': 'NCSS', 'value': str(ncss)})
+    cElementTree.SubElement(measure_file, 'sum', {'label': 'CCN', 'value': str(ccn)})
+    cElementTree.SubElement(measure_file, 'sum', {'label': 'Functions', 'value': str(function_count)})
+    cElementTree.SubElement(measure_file, 'average', {'label': 'NCSS', 'value': str(ncss / function_count)})
+    cElementTree.SubElement(measure_file, 'average', {'label': 'CCN', 'value': str(ccn / function_count)})
+
+    tree = cElementTree.ElementTree(xml)
+    tree.write(output_file)
+
+
 @timer
 @print_log('javancss')
 def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
@@ -339,17 +415,6 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
         print('no files to run javancss check')
         return -1
     output_file = path.join(output_path, 'Lizard_Result.xml')
-    cmd = [
-        'python',
-        path.join(tool_set_path, 'Lizard-Java', 'lizard-master', 'lizard.py'),
-        '-l',
-        'java',
-        '-C',
-        '10',
-        '-o',
-        output_file
-    ]
-
     if enable_exclude:
         left_java_files = filter_files(exclude_files_path, 'JavaNCSS_Conf.txt', changed_java_files,
                                        match=lambda pattern, filename: re.search(pattern, filename) is not None)[:]
@@ -358,11 +423,9 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
     if len(left_java_files) == 0:
         print('no files to run javancss check')
         return -1
-
-    cmd.extend(left_java_files)
-    ret = run(cmd)
+    generate_lizard_xml_file(left_java_files, output_file)
     convert_lizard_xml_to_html(tool_set_path, output_path)
-    return ret
+    return 0
 
 
 def convert_lizard_xml_to_html(tool_set_path, output_path):
@@ -487,7 +550,7 @@ def save_analysis_class_files(full_name, class_files):
 @timer
 @print_log('spotbugs')
 def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files, *,
-                       enable_exclude=False,  exclude_files_path=None):
+                       enable_exclude=False, exclude_files_path=None):
     """
     执行spotbugs检测
     :param project_path: 工程目录
