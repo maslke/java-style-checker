@@ -10,9 +10,9 @@ from check.pmd import run_pmd_check
 from check.simian import run_simian_check
 from check.spotbugs import run_spotbugs_check
 from util.decorators import print_log
-from util.server import start_web_page
+from util.server import start_web_page, kill_process_using_name, kill_process_using_port
 from util.source import get_given_files, get_changed_files, get_repo, get_last_committed_files
-from util.util import check_app_executable, need_run_check, delete_result_file
+from util.util import check_app_executable, need_run_check, delete_result_file, is_run_in_package_mode
 
 
 @print_log('all')
@@ -38,7 +38,6 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param auto_open: 在设置开启web server的前提下，是否自动打开浏览器
     :return:
     """
-
     try:
         check_app_executable(['node', '-v'])
     except FileNotFoundError | subprocess.CalledProcessError:
@@ -56,6 +55,12 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     except FileNotFoundError | subprocess.CalledProcessError:
         print('git is not executable')
         return -1
+
+    if is_run_in_package_mode():
+        kill_process_using_name('style-checker')
+
+    if enable_web:
+        kill_process_using_port(port)
 
     if not path.exists(project_path):
         print('project does not exist')

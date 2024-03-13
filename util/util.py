@@ -1,4 +1,5 @@
 import os
+import sys
 from os import path
 import subprocess
 import platform
@@ -77,6 +78,14 @@ def is_windows():
     """
     os_platform = platform.system()
     return os_platform == 'Windows'
+
+
+def is_run_in_package_mode():
+    """
+    判断是否已打包的方式运行
+    :return: 打包方式运行，返回True；脚本方式运行，返回False
+    """
+    return getattr(sys, 'frozen', False)
 
 
 def check_app_executable(cmd):

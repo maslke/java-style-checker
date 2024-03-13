@@ -1,5 +1,5 @@
+import os
 import socket
-import subprocess
 import webbrowser
 from http.server import HTTPServer
 import psutil
@@ -39,20 +39,6 @@ def port_is_valid(web_port):
 def kill_process_using_port(port):
     """
     杀掉占用端口的进程
-    :param port:  端口号
-    :return:
-    """
-    command = f"netstat -ano | findstr {port}"
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    pid = result.stdout.split()[-1]
-    if pid:
-        subprocess.run(f"taskkill /F /PID {pid}", shell=True)
-        print(f'Process with PID {pid} killed successfully.')
-
-
-def kill_process_using_port_psutil(port):
-    """
-    杀掉占用端口的进程
     :param port: 端口号
     :return:
     """
@@ -60,8 +46,42 @@ def kill_process_using_port_psutil(port):
         try:
             for conns in proc.connections(kind='inet'):
                 if conns.laddr.port == port:
-                    proc.kill()
+                    proc.terminate()
                     print(f"Process with PID {proc.pid} killed successfully.")
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.AccessDenied:
+            pass
+
+
+def kill_process_using_name(name):
+    """
+    根据进程名称杀死进程
+    :param name:
+    :return:
+    """
+    proc_list = []
+    for proc in psutil.process_iter(['pid', 'name', 'ppid']):
+        try:
+            if name.lower() in proc.name().lower():
+                proc_list.append(proc)
+        except psutil.NoSuchProcess:
+            pass
+        except psutil.AccessDenied:
+            pass
+    pid = os.getpid()
+    current_process_list = []
+    current_process_id_list = []
+    current_process = list(filter(lambda x: x.pid == pid, proc_list))
+    if len(current_process) > 0:
+        current_process_list.extend(current_process)
+        current_process_list.extend(list(filter(lambda x: x.pid == current_process[0].ppid(), proc_list)))
+        current_process_id_list.extend([p.pid for p in current_process_list])
+    for proc in proc_list:
+        try:
+            if proc.pid not in current_process_id_list:
+                proc.terminate()
+                print(f"Process with PID {proc.pid} killed successfully, By PID {pid}")
         except psutil.NoSuchProcess:
             pass
         except psutil.AccessDenied:
@@ -77,7 +97,7 @@ def start_web_page(output_folder, web_port, auto_open):
     :return:
     """
     print(f'visit http://localhost:{web_port}')
-    kill_process_using_port_psutil(web_port)
+    kill_process_using_port(web_port)
     if auto_open:
         webbrowser.open_new_tab(f'http://localhost:{web_port}')
     run_server(port=web_port, base_dir=output_folder)
