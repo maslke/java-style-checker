@@ -21,7 +21,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='style-checker-core',
+    name='style-checker',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
