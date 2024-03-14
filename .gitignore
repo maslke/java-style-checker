@@ -5,3 +5,5 @@ build/
 dist/
 spec/dist/
 spec/build/
+
+__pycache__

@@ -1,6 +1,5 @@
-
-from os import path
 import re
+from os import path
 
 from util.decorators import timer, print_log
 from util.util import filter_files, run, is_windows
@@ -34,11 +33,11 @@ def run_pmd_check(tool_set_path, output_path, changed_java_files, *, enable_excl
         return -1
 
     cmd = [
-        path.join(tool_set_path, 'PMD', 'bin', program),
+        path.join(tool_set_path, 'pmd-6.35.0', 'bin', program),
         '-d',
         ','.join(left_java_files),
         '-R',
-        path.join(tool_set_path, 'PMD', 'rulesets', '135518204_pmd4.0-ruleset-base.xml'),
+        path.join(tool_set_path, 'pmd-6.35.0', 'rulesets', 'quickstart.xml'),
         '-f',
         'xml',
         '-reportfile',

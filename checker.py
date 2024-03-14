@@ -29,7 +29,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param enable_web: 是否启用web server
     :param port: 发布检查结果页面的web应用端口
     :param enable_exclude: 是否开启例外文件过滤
-    :param exclude_files_path: 例外文件路径
+    :param exclude_files_path: 例外文件路径1
     :param mode: 检查模式
     :param exclude_test: 不对测试代码执行检查
     :param files: 执行检查分析的文件

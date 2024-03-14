@@ -1,9 +1,9 @@
 import os
-from os import path
 import re
+from os import path
+from xml.etree import cElementTree
 
 import lizard
-from xml.etree import cElementTree
 from lxml import etree
 
 from util.decorators import timer, print_log

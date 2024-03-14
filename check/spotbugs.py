@@ -36,18 +36,16 @@ def run_spotbugs_check(project_path, tool_path, output_path, changed_java_files,
     class_files = [path.join(project_path, class_name) for class_name in class_names if class_name]
     class_files_path = path.join(output_path, 'spotbugs_analysis.ini')
     save_analysis_class_files(class_files_path, class_files)
-    output_file = path.join(output_path, 'NewFindBugs_Result.html')
+    output_file = path.join(output_path, 'SpotBugs_Result.html')
     cmd = [
         'java',
         '-jar',
-        path.join(tool_path, 'findbugs-3.0.1', 'lib', 'spotbugs.jar'),
+        path.join(tool_path, 'spotbugs-4.8.3', 'lib', 'spotbugs.jar'),
         '-textui',
         '-quiet',
         '-medium',
         '-omitVisitors',
         'FindReturnRef',
-        '-exclude',
-        path.join(tool_path, 'findbugs-3.0.1', 'zcip', 'findbugs_filter.xml'),
         f'-html={output_file}',
         '-analyzeFromFile',
         class_files_path
