@@ -119,7 +119,7 @@ def convert_lizard_xml_to_html(tool_set_path, output_path):
     :return:
     """
     xml_path = path.join(output_path, 'Lizard_Result.xml')
-    xsl_path = path.join(tool_set_path, 'Lizard-Java', 'xslt', 'ZCIP_Lizard2methodhtml.xsl')
+    xsl_path = path.join(tool_set_path, 'lizard', 'lizard.xsl')
     html_path = path.join(output_path, 'Lizard_Result.html')
     convert_xml_to_html(xml_path, html_path, xsl_path)
     os.remove(xml_path)

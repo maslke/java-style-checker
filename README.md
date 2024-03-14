@@ -4,7 +4,6 @@
 
 使用此工具，可对项目中变动的java文件和js文件，提供一键式的代码规范检查：
 1. 对java代码，执行checkstyle、pmd、spotbugs、simian、javancss检查。
-2. 对于js代码，执行eslint检查。
 
 检查所使用的工具，基于公司ci流程中的代码规范检查工具集。
 

@@ -4,7 +4,6 @@ import subprocess
 from os import path
 
 from check.checkstyle import run_checkstyle_check
-from check.eslint import run_eslint_check
 from check.javancss import run_javancss_check
 from check.pmd import run_pmd_check
 from check.simian import run_simian_check
@@ -20,7 +19,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
           mode='1',
           exclude_test=False,
           files=None,
-          plugins='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs',
+          plugins='checkstyle,pmd,spotbugs,javancss,simian,findbugs',
           auto_open=False):
     """
     执行代码规范检查
@@ -98,9 +97,6 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
         run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
                       exclude_files_path=exclude_files_path)
 
-    if need_run_check('eslint', plugins) or need_run_check('eslint5', plugins):
-        run_eslint_check(tool_set_path, full_output_path, changed_js_files)
-
     if need_run_check('spotbugs', plugins) or need_run_check('findbugs', plugins):
         run_spotbugs_check(project_path, tool_set_path, full_output_path, changed_java_files,
                            enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
@@ -134,7 +130,7 @@ def main():
     parser.add_argument('--exclude-test', action='store_true', required=False, help='check test code or not')
     parser.add_argument('--files', '-f', required=False, help='path of analysis file')
     parser.add_argument('--plugins', required=False,
-                        default='checkstyle,pmd,spotbugs,javancss,simian,eslint,eslint5,findbugs',
+                        default='checkstyle,pmd,spotbugs,javancss,simian,findbugs',
                         help='list of check types that will be executed')
     parser.add_argument('--auto-open', action='store_true', required=False, help='whether to open browser after check')
 

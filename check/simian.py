@@ -22,12 +22,11 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *, enable_e
     if len(changed_java_files) == 0:
         print('no files to run simian check')
         return -1
-    # shutil.copyfile(path.join(tool_set_path, 'simian-2.3.33', 'simian.xsl'), path.join(output_path, 'simian.xsl'))
     output_file = path.join(output_path, 'Simian_Result.xml')
     cmd = [
         'java',
         '-jar',
-        path.join(tool_set_path, 'simian-2.3.33', 'bin', 'simian-2.3.33.jar'),
+        path.join(tool_set_path, 'simian-2.3.33', 'simian-2.3.33.jar'),
         '-threshold=20',
         f'-formatter=xml:{output_file}'
     ]
