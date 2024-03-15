@@ -5,8 +5,6 @@
 使用此工具，可对项目中变动的java文件和js文件，提供一键式的代码规范检查：
 1. 对java代码，执行checkstyle、pmd、spotbugs、simian、javancss检查。
 
-检查所使用的工具，基于公司ci流程中的代码规范检查工具集。
-
 工具提供了多种检测模式：
 1. `mode=1`，对仓库中最后一次commit的文件进行检测。
 2. `mode=2`，对仓库中变动了的文件进行检测，包括已经在git仓库中的文件，以及新添加的文件。
@@ -18,7 +16,7 @@
 
 ### 依赖
 
-1. 环境变量中配置`java`、`node`、`git`。
+1. 环境变量中配置`java`、`git`。
 2. 使用`python3`版本作为python解释器。
 3. 使用`pip`执行安装`pip install -r requirements.txt`。 由于国内网络环境问题，在使用`pip`安装包的时候，推荐使用国内的第三方源。如使用清华源。
 4. 如需要执行应用打包，需使用`pyinstaller`。
@@ -132,7 +130,7 @@ python /path/to/checker.py -p /path/to/project --enable-exclude --plugins pmd,ch
 
 相较于脚本调用的方式，直接调用打包好的工具的方式具有如下的特点：
 
-1. 本地无需安装`python`环境，但`java`、`node`和`git`仍然是必须的。
+1. 本地无需安装`python`环境，但`java`和`git`仍然是必须的。
 2. 支持的参数列表，和脚本工具一致。
 
 打包好的工具，支持`Windows`、`MacOS`和`Linux`平台，可从代码仓库的`Release`页面中直接下载。
