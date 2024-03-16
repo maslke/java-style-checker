@@ -39,7 +39,10 @@ def run_simian_check(tool_set_path, output_path, changed_java_files, *,
         commands = f'-formatter=xml:{output_file} "{project_path}/**/*.java"'
         commands_list = shlex.split(commands)
         cmd.extend(commands_list)
-        exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'Simian_Conf.txt'))
+        if enable_exclude:
+            exclude_files = read_from_exclude_files(path.join(exclude_files_path, 'Simian_Conf.txt'))
+        else:
+            exclude_files = []
         if exclude_test:
             exclude_files.append('src/test/java/**/*.java')
         if len(exclude_files) > 0:

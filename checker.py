@@ -107,7 +107,9 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     if need_run_check('javancss', plugins):
         run_javancss_check(tool_set_path, full_output_path, changed_java_files,
-                           enable_exclude=enable_exclude, exclude_files_path=exclude_files_path)
+                           enable_exclude=enable_exclude,
+                           exclude_files_path=exclude_files_path,
+                           project_path=project_path, exclude_test=exclude_test)
 
     try:
         if enable_web:
