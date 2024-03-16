@@ -37,11 +37,6 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     :param auto_open: 在设置开启web server的前提下，是否自动打开浏览器
     :return:
     """
-    try:
-        check_app_executable(['node', '-v'])
-    except FileNotFoundError | subprocess.CalledProcessError:
-        print('node is not executable')
-        return -1
 
     try:
         check_app_executable(['java', '-version'])
