@@ -66,9 +66,18 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     git_address = repo.working_tree_dir
     if files is not None:
         changed_java_files, changed_js_files = get_given_files(files, exclude_test)
-    else:
+    elif mode in ['1', '2']:
         changed_java_files, changed_js_files = get_last_committed_files(repo, exclude_test) \
             if mode == '1' else get_changed_files(repo, exclude_test)
+    elif mode == '1':
+        changed_java_files, changed_js_files = get_last_committed_files(repo, exclude_test)
+    elif mode == '2':
+        changed_java_files, changed_js_files = get_changed_files(repo, exclude_test)
+    elif mode == '3':
+        changed_java_files, changed_js_files = [], []
+    else:
+        print(f'unsupported check mode:{mode}')
+        return -1
 
     full_output_path = output_path if output_path else path.join(project_path, 'check_result')
     if not path.exists(full_output_path):
@@ -86,7 +95,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     if need_run_check('simian', plugins):
         run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
-                         exclude_files_path=exclude_files_path)
+                         exclude_files_path=exclude_files_path, project_path=project_path, exclude_test=exclude_test)
 
     if need_run_check('pmd', plugins):
         run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
@@ -121,7 +130,7 @@ def main():
                         help='whether to enable exclude files config')
     parser.add_argument('--exclude-files-path', required=False, help='path of exclude files')
     parser.add_argument('--mode', '-m', required=False, type=str, default='1',
-                        help='1 for check after committed, 2 for check before committed')
+                        help='1 for check after committed, 2 for check before committed, 3 for whole project code files')
     parser.add_argument('--exclude-test', action='store_true', required=False, help='check test code or not')
     parser.add_argument('--files', '-f', required=False, help='path of analysis file')
     parser.add_argument('--plugins', required=False,
