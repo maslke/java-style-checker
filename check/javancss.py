@@ -31,25 +31,20 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
     """
     output_file = path.join(output_path, 'Lizard_Result.xml')
     if project_path:
-        if enable_exclude:
-            exclude_patterns = read_from_exclude_files(path.join(exclude_files_path, 'JavaNCSS_Conf.txt'))
-        else:
-            exclude_patterns = []
-        source_files = lizard.get_all_source_files([project_path], exclude_patterns, ['java'])
-        java_files = list(source_files)
-        if exclude_test:
-            left_java_files = list(filter(lambda file: 'src/test/java' not in file, java_files))
-        else:
-            left_java_files = changed_java_files[:]
+        source_files = lizard.get_all_source_files([project_path], [], ['java'])
+        changed_java_files = list(source_files)
+    if len(changed_java_files) == 0:
+        print('no files to run javancss check')
+        return -1
+    if enable_exclude:
+        left_java_files = filter_files(exclude_files_path, 'JavaNCSS_Conf.txt', changed_java_files,
+                                       match=lambda pattern, filename: re.search(pattern, filename) is not None)[:]
     else:
-        if len(changed_java_files) == 0:
-            print('no files to run javancss check')
-            return -1
-        if enable_exclude:
-            left_java_files = filter_files(exclude_files_path, 'JavaNCSS_Conf.txt', changed_java_files,
-                                           match=lambda pattern, filename: re.search(pattern, filename) is not None)[:]
-        else:
-            left_java_files = changed_java_files[:]
+        left_java_files = changed_java_files[:]
+
+    if project_path and exclude_test:
+        left_java_files = list(filter(lambda filename: 'src/test/java' not in filename, left_java_files))
+
     if len(left_java_files) == 0:
         print('no files to run javancss check')
         return -1
