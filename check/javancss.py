@@ -7,16 +7,14 @@ import lizard
 from lxml import etree
 
 from util.decorators import timer, print_log
-from util.util import filter_files, read_from_exclude_files
+from util.util import filter_files
 
 
 @timer
 @print_log('javancss')
 def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
                        enable_exclude=False,
-                       exclude_files_path=None,
-                       project_path=None,
-                       exclude_test=False):
+                       exclude_files_path=None):
     """
     执行圈复杂度检测，检测阈值为10
     使用检测工具中自带的lizard.py文件执行检查，不强制要求执行环境中安装lizard模块
@@ -25,26 +23,17 @@ def run_javancss_check(tool_set_path, output_path, changed_java_files, *,
     :param changed_java_files: 执行检查的java源代码文件
     :param enable_exclude: 是否开启例外文件配置
     :param exclude_files_path: 例外文件目录
-    :param project_path: 工程目录
-    :param exclude_test: 排除测试文件
     :return:
     """
-    output_file = path.join(output_path, 'Lizard_Result.xml')
-    if project_path:
-        source_files = lizard.get_all_source_files([project_path], [], ['java'])
-        changed_java_files = list(source_files)
     if len(changed_java_files) == 0:
         print('no files to run javancss check')
         return -1
+    output_file = path.join(output_path, 'Lizard_Result.xml')
     if enable_exclude:
         left_java_files = filter_files(exclude_files_path, 'JavaNCSS_Conf.txt', changed_java_files,
                                        match=lambda pattern, filename: re.search(pattern, filename) is not None)[:]
     else:
         left_java_files = changed_java_files[:]
-
-    if project_path and exclude_test:
-        left_java_files = list(filter(lambda filename: 'src/test/java' not in filename, left_java_files))
-
     if len(left_java_files) == 0:
         print('no files to run javancss check')
         return -1

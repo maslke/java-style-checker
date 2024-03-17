@@ -10,7 +10,7 @@ from check.simian import run_simian_check
 from check.spotbugs import run_spotbugs_check
 from util.decorators import print_log
 from util.server import start_web_page, kill_process_using_name, kill_process_using_port
-from util.source import get_given_files, get_changed_files, get_repo, get_last_committed_files
+from util.source import get_given_files, get_changed_files, get_repo, get_last_committed_files, get_all_files
 from util.util import check_app_executable, need_run_check, delete_result_file, is_run_in_package_mode
 
 
@@ -74,7 +74,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     elif mode == '2':
         changed_java_files, changed_js_files = get_changed_files(repo, exclude_test)
     elif mode == '3':
-        changed_java_files, changed_js_files = [], []
+        changed_java_files, changed_js_files = get_all_files(project_path, exclude_test)
     else:
         print(f'unsupported check mode:{mode}')
         return -1
@@ -95,7 +95,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
 
     if need_run_check('simian', plugins):
         run_simian_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
-                         exclude_files_path=exclude_files_path, project_path=project_path, exclude_test=exclude_test)
+                         exclude_files_path=exclude_files_path)
 
     if need_run_check('pmd', plugins):
         run_pmd_check(tool_set_path, full_output_path, changed_java_files, enable_exclude=enable_exclude,
@@ -108,8 +108,7 @@ def check(project_path, tool_set_path, output_path, *, enable_web, port, enable_
     if need_run_check('javancss', plugins):
         run_javancss_check(tool_set_path, full_output_path, changed_java_files,
                            enable_exclude=enable_exclude,
-                           exclude_files_path=exclude_files_path,
-                           project_path=project_path, exclude_test=exclude_test)
+                           exclude_files_path=exclude_files_path)
 
     try:
         if enable_web:
