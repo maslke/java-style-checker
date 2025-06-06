@@ -10,6 +10,7 @@ from check.javancss import run_javancss_check
 from check.pmd import run_pmd_check
 from check.simian import run_simian_check
 from check.spotbugs import run_spotbugs_check
+from check.pylint import run_pylint_check
 from util.decorators import print_log
 from util.server import start_web_page, kill_process_using_name, kill_process_using_port
 from util.source import (
@@ -173,6 +174,9 @@ def check(
             exclude_files_path=exclude_files_path,
         )
 
+    if need_run_check("pylint", plugins):
+        run_pylint_check(check_params)
+
     try:
         if enable_web:
             start_web_page(full_output_path, port, auto_open)
@@ -233,7 +237,7 @@ def main():
     parser.add_argument(
         "--plugins",
         required=False,
-        default="checkstyle,pmd,spotbugs,javancss,simian,findbugs",
+        default="checkstyle,pmd,spotbugs,javancss,simian,findbugs,pylint",
         help="list of check types that will be executed",
     )
     parser.add_argument(
