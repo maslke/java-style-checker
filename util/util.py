@@ -3,6 +3,7 @@ import sys
 from os import path
 import subprocess
 import platform
+import re
 
 
 def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
@@ -123,3 +124,19 @@ def need_run_check(plugin, plugins):
     :return:
     """
     return plugin in plugins
+
+def ant_to_regex(ant_pattern: str) -> str:
+    """
+    将 Ant 风格的路径模式转换为正则表达式。
+    支持 Ant 模式中的 **, *, ?, {}, [] 等。
+    """
+    # 转义正则表达式中特殊字符
+    ant_pattern = re.escape(ant_pattern)
+    # 替换 Ant 模式的特殊符号
+    ant_pattern = ant_pattern.replace(r"\*\*", ".*")
+    ant_pattern = ant_pattern.replace(r"\*", "[^/]*")
+    ant_pattern = ant_pattern.replace(r"\?", ".")
+    ant_pattern = (
+        ant_pattern.replace(r"\{", "(").replace(r"\}", ")").replace(r"\,", "|")
+    )  # {a,b} -> (a|b)
+    return ant_pattern

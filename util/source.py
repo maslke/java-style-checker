@@ -1,8 +1,12 @@
-from os import path
+from os import path, sep
 import git
 
 import lizard
 
+
+def get_repo_from_file(file_path):
+    parent_dir = sep.join(file_path.split(sep)[:-1])
+    return get_repo(parent_dir)
 
 def get_repo(project_path):
     """
