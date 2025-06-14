@@ -147,13 +147,7 @@ def check(
         )
 
     if need_run_check("pmd", plugins):
-        run_pmd_check(
-            tool_set_path,
-            full_output_path,
-            changed_java_files,
-            enable_exclude=enable_exclude,
-            exclude_files_path=exclude_files_path,
-        )
+        run_pmd_check(check_params)
 
     if need_run_check("spotbugs", plugins) or need_run_check("findbugs", plugins):
         run_spotbugs_check(
