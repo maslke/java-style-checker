@@ -138,13 +138,7 @@ def check(
         run_checkstyle_check(check_params=check_params)
 
     if need_run_check("simian", plugins):
-        run_simian_check(
-            tool_set_path,
-            full_output_path,
-            changed_java_files,
-            enable_exclude=enable_exclude,
-            exclude_files_path=exclude_files_path,
-        )
+        run_simian_check(check_params=check_params)
 
     if need_run_check("pmd", plugins):
         run_pmd_check(check_params)
@@ -160,13 +154,7 @@ def check(
         )
 
     if need_run_check("javancss", plugins):
-        run_javancss_check(
-            tool_set_path,
-            full_output_path,
-            changed_java_files,
-            enable_exclude=enable_exclude,
-            exclude_files_path=exclude_files_path,
-        )
+        run_javancss_check(check_params=check_params)
 
     if need_run_check("pylint", plugins):
         run_pylint_check(check_params)

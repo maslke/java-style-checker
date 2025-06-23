@@ -5,6 +5,8 @@ import subprocess
 import platform
 import re
 
+from lxml import etree
+
 
 def filter_files(exclude_path, exclude_file_name, changed_java_files, match):
     """
@@ -44,21 +46,33 @@ def read_from_exclude_files(full_name_path):
     has_begin = False
     lines = []
     try:
-        with open(full_name_path, 'r', encoding='UTF-8') as fp:
+        with open(full_name_path, "r", encoding="UTF-8") as fp:
             lines.extend(fp.readlines())
     except FileNotFoundError:
         pass
-    for line in [_.removesuffix('\n') for _ in lines]:
-        if line == '':
+    for line in [remove_suffix_compat(_, "\n") for _ in lines]:
+        if line == "" or line == "[function]":
             continue
-        if line == '[EXCLUDE]':
+        if line == "[EXCLUDE]":
             has_begin = True
             continue
-        if has_begin and line == '[INCLUDE]':
+        if has_begin and line == "[INCLUDE]":
             break
-        if has_begin and not line.startswith('#'):
+        if has_begin and not line.startswith("#"):
             excludes_files.append(line)
     return excludes_files
+
+
+def remove_suffix_compat(s, suffix):
+    """
+    模拟python 3.9版本以后提供的removesuffix方法
+    :param s:
+    :param suffix:
+    :return:
+    """
+    if s.endswith(suffix):
+        return s[: -len(suffix)]
+    return s
 
 
 def run(cmd):
@@ -67,7 +81,7 @@ def run(cmd):
     :param cmd: 命令参数
     :return:
     """
-    print(' '.join(cmd), end=os.linesep)
+    print(" ".join(cmd), end=os.linesep)
     process = subprocess.run(cmd)
     return process.returncode
 
@@ -78,7 +92,7 @@ def is_windows():
     :return: 当windows平台，返回True，否则返回False
     """
     os_platform = platform.system()
-    return os_platform == 'Windows'
+    return os_platform == "Windows"
 
 
 def is_run_in_package_mode():
@@ -86,7 +100,7 @@ def is_run_in_package_mode():
     判断是否已打包的方式运行
     :return: 打包方式运行，返回True；脚本方式运行，返回False
     """
-    return getattr(sys, 'frozen', False)
+    return getattr(sys, "frozen", False)
 
 
 def check_app_executable(cmd):
@@ -125,6 +139,7 @@ def need_run_check(plugin, plugins):
     """
     return plugin in plugins
 
+
 def ant_to_regex(ant_pattern: str) -> str:
     """
     将 Ant 风格的路径模式转换为正则表达式。
@@ -140,3 +155,19 @@ def ant_to_regex(ant_pattern: str) -> str:
         ant_pattern.replace(r"\{", "(").replace(r"\}", ")").replace(r"\,", "|")
     )  # {a,b} -> (a|b)
     return ant_pattern
+
+
+def convert_xml_to_html(xml_path, html_path, xsl_path):
+    """
+    将lizard xml格式的结果转换成html
+    :param xml_path: xml格式文件的路径
+    :param html_path: html格式文件的路径
+    :param xsl_path: xsl文件路径
+    :return:
+    """
+    xml_tree = etree.parse(xml_path)
+    xsl_tree = etree.parse(xsl_path)
+    transform = etree.XSLT(xsl_tree)
+    html_tree = transform(xml_tree)
+    with open(html_path, "w") as fp:
+        fp.write(str(html_tree))
