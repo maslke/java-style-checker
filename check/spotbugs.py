@@ -80,7 +80,11 @@ def run_in_editing_mode(
     include_file_path = path.join(output_path, "findbugs_include.xml")
     save_include_files(include_file_path, package_names)
     analysis_file_path = path.join(output_path, "findbugs_analysis.txt")
-    save_class_files(analysis_file_path, get_class_files(project_path))
+    class_files = get_class_files(project_path)
+    if len(class_files) == 0:
+        print("no class files to run spotbugs check")
+        return -1
+    save_class_files(analysis_file_path, class_files)
     cmd = [
         "java",
         "-Xmx4g",
@@ -116,7 +120,8 @@ def run_in_editing_mode(
     ret = run(cmd)
     os.remove(include_file_path)
     os.remove(analysis_file_path)
-    remove_extra_nodes_and_save(output_file)
+    if ret == 0:
+        remove_extra_nodes_and_save(output_file)
     if filter_file:
         os.remove(filter_file)
     return ret
@@ -179,7 +184,8 @@ def run_in_all_mode(
             ]
         )
     ret = run(cmd)
-    remove_extra_nodes_and_save(output_file)
+    if ret == 0:
+        remove_extra_nodes_and_save(output_file)
     os.remove(analysis_file_path)
     if filter_file:
         os.remove(filter_file)
